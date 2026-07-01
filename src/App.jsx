@@ -29,7 +29,7 @@ const About = () => (
                 <p className="subtitle">
                     Computer Science Graduate building modular solutions with{" "}
                     <b>React</b> and <b>AI integration</b>. Passionate about{" "}
-                    <b>Robotics</b> and <b>gGame Development</b>.
+                    <b>Robotics</b> and <b>Game Development</b>.
                 </p>
             </div>
             <div className="hero-image-wrapper">
