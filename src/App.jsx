@@ -27,9 +27,9 @@ const About = () => (
             <div className="hero-text">
                 <h1>Hi, I'm Rochambeau.</h1>
                 <p className="subtitle">
-                    Fresh Computer Science Graduate building modular solutions
-                    with <b>React</b> and <b>AI integration</b>. Passionate
-                    about <b>Robotics</b> and <b>gGame Development</b>.
+                    Computer Science Graduate building modular solutions with{" "}
+                    <b>React</b> and <b>AI integration</b>. Passionate about{" "}
+                    <b>Robotics</b> and <b>gGame Development</b>.
                 </p>
             </div>
             <div className="hero-image-wrapper">
