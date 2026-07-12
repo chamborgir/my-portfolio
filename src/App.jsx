@@ -27,9 +27,10 @@ const About = () => (
             <div className="hero-text">
                 <h1>Hi, I'm Rochambeau.</h1>
                 <p className="subtitle">
-                    Developer specializing in <b>React</b> engineering and
-                    intelligent systems. Designing optimized, modular blueprints
-                    for <b>Web</b>, <b>Robotics</b>, and <b>Game Engines</b>.
+                    Software developer building modular, scalable web
+                    applications with <b>React</b> and <b>AI integration</b>.
+                    Designing complex interactive systems across <b>Robotics</b>{" "}
+                    and <b>Game Development</b>.
                 </p>
             </div>
             <div className="hero-image-wrapper">
