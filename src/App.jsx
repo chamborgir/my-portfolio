@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from "react";
 import "./index.css";
 import profileImg from "./assets/pfp.jpeg";
+import work1Img from "./assets/work1.png";
+import work2Img from "./assets/work2.png";
+import work3Img from "./assets/work3.png";
 
 // 1. Header accepts the darkMode properties to handle the toggle action
 const Header = ({ darkMode, setDarkMode }) => (
@@ -47,7 +50,7 @@ const About = () => (
 const Projects = () => {
     const projectList = [
         {
-            image: "src/assets/work1.png",
+            image: work1Img,
             title: "VLA Robotic Task Decomposition Pipeline",
             category: "Project #1",
             desc: "A modular, triple-system pipeline that inserts a rule-based Task Decomposition Module between a Qwen2-VL backbone and a flow-matching action expert (SmolVLA) for an SO-100 robotic arm in Webots. Achieved a 42.1% reduction in trajectory jerk.",
@@ -71,7 +74,7 @@ const Projects = () => {
             ],
         },
         {
-            image: "src/assets/work2.png",
+            image: work2Img,
             title: "3D UFO Asteroid Shooter",
             category: "Project #2",
             desc: "An atmospheric 3D space arcade experience. Pilot a craft across 10 distinct celestial bodies, locating a randomly spawned weapon attachment to clear incoming asteroid hazards.",
@@ -88,7 +91,7 @@ const Projects = () => {
             ],
         },
         {
-            image: "src/assets/work3.png",
+            image: work3Img,
             title: "Client Scheduler",
             category: "Project #3",
             desc: "A robust, web-based scheduling application designed for efficient appointment and task management that provides a clean, user-friendly interface for tracking schedules and maintaining personal or professional tasks.",
