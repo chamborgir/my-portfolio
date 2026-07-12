@@ -27,9 +27,9 @@ const About = () => (
             <div className="hero-text">
                 <h1>Hi, I'm Rochambeau.</h1>
                 <p className="subtitle">
-                    Computer Science Graduate building modular solutions with{" "}
-                    <b>React</b> and <b>AI integration</b>. Passionate about{" "}
-                    <b>Robotics</b> and <b>Game Development</b>.
+                    Developer specializing in <b>React</b> engineering and
+                    intelligent systems. Designing optimized, modular blueprints
+                    for <b>Web</b>, <b>Robotics</b>, and <b>Game Engines</b>.
                 </p>
             </div>
             <div className="hero-image-wrapper">
@@ -151,7 +151,8 @@ const Contact = () => (
         <div className="section-content">
             <h2 className="section-title">Get In Touch</h2>
             <p className="contact-text">
-                Let's build something together or chat about technology.
+                Open for freelance opportunities, full-time positions, or just
+                talking shop about tech. Let's build something great together.
             </p>
             <div className="contact-links">
                 <a href="mailto:chamboquilon1@gmail.com">Email</a>
@@ -168,6 +169,13 @@ const Contact = () => (
                     rel="noreferrer"
                 >
                     LinkedIn
+                </a>
+                <a
+                    href="https://drive.google.com/file/d/1xMfDCgK7woGQUsxy4Na-P-ZLBgZ3nGlG/view?usp=sharing"
+                    target="_blank"
+                    rel="noreferrer"
+                >
+                    CV
                 </a>
             </div>
         </div>
