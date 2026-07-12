@@ -113,6 +113,18 @@ const Projects = () => {
                             <span className="project-category">
                                 {proj.category}
                             </span>
+                            {/* Add this Image Placeholder block here */}
+                            <div className="project-image-container">
+                                <img
+                                    src={
+                                        proj.image ||
+                                        "https://picsum.photos/600/338"
+                                    }
+                                    alt={`${proj.title} thumbnail`}
+                                    className="project-image"
+                                />
+                            </div>
+
                             <h3>{proj.title}</h3>
                             <p>{proj.desc}</p>
                             <div className="tag-container">

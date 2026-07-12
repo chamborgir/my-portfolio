@@ -166,6 +166,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  overflow: hidden;
 }
 
 .project-category {
@@ -187,6 +188,32 @@ body {
   color: var(--text-muted);
   margin-bottom: 1rem;
   font-size: 1rem;
+}
+
+/* 1. The Container Wrapper: Enforces strict uniform proportions */
+.project-image-container {
+    width: 100%;
+    aspect-ratio: 16 / 9;      /* Forces exact matching height box for all images */
+    background-color: #1a1a1a;   /* Solid clean placeholder color background */
+    border-radius: 4px;         /* Match your theme styling */
+    overflow: hidden;
+    margin-bottom: 1.25rem;     /* Space between image and categories text */
+    position: relative;
+}
+
+/* 2. The Real Image: Fills the wrapper without crushing ratios */
+.project-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;          /* Crops different sized photos perfectly into the grid frame */
+    object-position: center;
+    display: block;
+    transition: transform 0.3s ease;
+}
+
+/* Subtle modern clean animation accent */
+.project-card:hover .project-image {
+    transform: scale(1.02);
 }
 
 .tag-container {
