@@ -47,6 +47,7 @@ const About = () => (
 const Projects = () => {
     const projectList = [
         {
+            image: "src/assets/work1.png",
             title: "VLA Robotic Task Decomposition Pipeline",
             category: "Project #1",
             desc: "A modular, triple-system pipeline that inserts a rule-based Task Decomposition Module between a Qwen2-VL backbone and a flow-matching action expert (SmolVLA) for an SO-100 robotic arm in Webots. Achieved a 42.1% reduction in trajectory jerk.",
@@ -70,6 +71,7 @@ const Projects = () => {
             ],
         },
         {
+            image: "src/assets/work2.png",
             title: "3D UFO Asteroid Shooter",
             category: "Project #2",
             desc: "An atmospheric 3D space arcade experience. Pilot a craft across 10 distinct celestial bodies, locating a randomly spawned weapon attachment to clear incoming asteroid hazards.",
@@ -86,18 +88,19 @@ const Projects = () => {
             ],
         },
         {
-            title: "Online Web Photobooth",
+            image: "src/assets/work3.png",
+            title: "Client Scheduler",
             category: "Project #3",
-            desc: "A completely private browser photobooth utilizing WebRTC. Automates a 4-shot sequence, building a traditional vertical photostrip ready for high-resolution canvas download or hardware print.",
-            tags: ["WebRTC API", "HTML5 Canvas", "JavaScript", "CSS3"],
+            desc: "A robust, web-based scheduling application designed for efficient appointment and task management that provides a clean, user-friendly interface for tracking schedules and maintaining personal or professional tasks.",
+            tags: ["React", "Vite", "Supabase", "JavaScript", "CSS"],
             links: [
                 {
                     label: "GitHub",
-                    url: "https://github.com/chamborgir/chambeauPhotoBooth",
+                    url: "https://github.com/chamborgir/client-scheduler",
                 },
                 {
                     label: "Live Demo",
-                    url: "https://chambeau-photo-booth.vercel.app/",
+                    url: "https://client-scheduler-orcin.vercel.app/",
                 },
             ],
         },
@@ -113,13 +116,9 @@ const Projects = () => {
                             <span className="project-category">
                                 {proj.category}
                             </span>
-                            {/* Add this Image Placeholder block here */}
                             <div className="project-image-container">
                                 <img
-                                    src={
-                                        proj.image ||
-                                        "https://picsum.photos/600/338"
-                                    }
+                                    src={proj.image}
                                     alt={`${proj.title} thumbnail`}
                                     className="project-image"
                                 />
