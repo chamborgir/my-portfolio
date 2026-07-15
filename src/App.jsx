@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import "./index.css";
 import profileImg from "./assets/pfp.jpeg";
-import work1Img from "./assets/work1.png";
-import work2Img from "./assets/work2.png";
-import work3Img from "./assets/work3.png";
+import work1Img from "./assets/work1.gif";
+import work2Img from "./assets/work2.gif";
+import work3Img from "./assets/work3.gif";
 
 // 1. Header accepts the darkMode properties to handle the toggle action
 const Header = ({ darkMode, setDarkMode }) => (
@@ -167,7 +167,7 @@ const Contact = () => (
             <h2 className="section-title">Get In Touch</h2>
             <p className="contact-text">
                 Open for freelance opportunities, full-time positions, or just
-                talking shop about tech. Let's build something great together.
+                chat about tech. Let's build something great together.
             </p>
             <div className="contact-links">
                 <a href="mailto:chamboquilon1@gmail.com">Email</a>
