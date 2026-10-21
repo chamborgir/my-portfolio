@@ -7,6 +7,7 @@ import React, {
     useImperativeHandle,
 } from "react";
 import * as THREE from "three";
+import { createPortal } from "react-dom";
 import "./index.css";
 import profileImg from "./assets/pfp1.jpg";
 import work1Img from "./assets/work1.gif";
@@ -779,31 +780,108 @@ const LinkList = ({ links }) => (
     </div>
 );
 
-const ProjectBody = ({ project }) => (
-    <div>
-        {project.image ? (
-            <img
-                src={project.image}
-                alt={`${project.title} preview`}
-                className="preview-media"
-            />
-        ) : (
-            <div className="preview-media placeholder">
-                <span>Preview coming soon</span>
+// Full-screen GIF viewer. Rendered in a portal so the modal can't clip it.
+const Lightbox = ({ src, alt, onClose }) => {
+    useEffect(() => {
+        // Capture phase: Esc and arrows only affect the lightbox, not the modal under it
+        const onKey = (e) => {
+            if (["Escape", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+                e.stopImmediatePropagation();
+                if (e.key === "Escape") onClose();
+            }
+        };
+        window.addEventListener("keydown", onKey, true);
+        return () => window.removeEventListener("keydown", onKey, true);
+    }, [onClose]);
+
+    return createPortal(
+        <div
+            className="lightbox"
+            onClick={onClose}
+            role="dialog"
+            aria-modal="true"
+            aria-label={alt}
+        >
+            <button
+                type="button"
+                className="icon-btn lightbox-close"
+                onClick={onClose}
+                aria-label="Close full-size preview"
+            >
+                ×
+            </button>
+            <img src={src} alt={alt} className="lightbox-img" />
+            <p className="lightbox-hint">Tap anywhere to close</p>
+        </div>,
+        document.body,
+    );
+};
+
+const ProjectBody = ({ project }) => {
+    const [zoomed, setZoomed] = useState(false);
+    const closeZoom = useCallback(() => setZoomed(false), []);
+
+    return (
+        <div>
+            {project.image ? (
+                <button
+                    type="button"
+                    className="preview-btn"
+                    onClick={() => setZoomed(true)}
+                    aria-label={`Expand ${project.title} preview`}
+                >
+                    <img
+                        src={project.image}
+                        alt={`${project.title} preview`}
+                        className="preview-media"
+                    />
+                    <span className="expand-badge">
+                        <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            aria-hidden="true"
+                        >
+                            <polyline points="15 3 21 3 21 9" />
+                            <polyline points="9 21 3 21 3 15" />
+                            <line x1="21" y1="3" x2="14" y2="10" />
+                            <line x1="3" y1="21" x2="10" y2="14" />
+                        </svg>
+                        Expand
+                    </span>
+                </button>
+            ) : (
+                <div className="preview-media placeholder">
+                    <span>Preview coming soon</span>
+                </div>
+            )}
+
+            <h2 className="panel-title">{project.title}</h2>
+            <p className="panel-text">{project.desc}</p>
+            <div className="tag-container">
+                {project.tags.map((tag) => (
+                    <span key={tag} className="tag">
+                        {tag}
+                    </span>
+                ))}
             </div>
-        )}
-        <h2 className="panel-title">{project.title}</h2>
-        <p className="panel-text">{project.desc}</p>
-        <div className="tag-container">
-            {project.tags.map((tag) => (
-                <span key={tag} className="tag">
-                    {tag}
-                </span>
-            ))}
+            <LinkList links={project.links} />
+
+            {zoomed && (
+                <Lightbox
+                    src={project.image}
+                    alt={`${project.title} full-size preview`}
+                    onClose={closeZoom}
+                />
+            )}
         </div>
-        <LinkList links={project.links} />
-    </div>
-);
+    );
+};
 
 const AboutBody = ({ onNavigate }) => (
     <div className="about-grid">
@@ -817,8 +895,7 @@ const AboutBody = ({ onNavigate }) => (
             <p className="panel-text">
                 Software developer building modular, scalable web applications
                 with <b>React</b> and <b>AI integration</b>. Designing complex
-                interactive systems across <b>Robotics</b> and{" "}
-                <b>Game Development</b>.
+                interactive systems across <b>Robotics</b>.
             </p>
             <div className="hero-cta">
                 <button
@@ -1108,8 +1185,8 @@ export default function App() {
                     <span className="caret" aria-hidden="true" />
                 </p>
                 <p className="subtitle">
-                    Software developer across <b>React</b>, <b>AI</b>,{" "}
-                    <b>Robotics</b> and <b>Game Development</b>.
+                    Software developer across <b>Web</b>, <b>AI</b>, and{" "}
+                    <b>Robotics</b> .
                 </p>
             </div>
 
