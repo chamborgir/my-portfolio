@@ -160,10 +160,11 @@ const SKILLS = [
 ];
 
 const ROLES = [
-    "modular React apps",
-    "AI-powered systems",
-    "robotic pipelines",
-    "interactive 3D games",
+    "modern React apps",
+    "AI-powered tools",
+    "robotic VLA pipelines",
+    "computer vision projects",
+    "LLM-driven apps",
 ];
 
 // Everything that lives on the helix, from top to bottom
@@ -860,9 +861,13 @@ const ProjectBody = ({ project }) => {
                     <span>Preview coming soon</span>
                 </div>
             )}
-
             <h2 className="panel-title">{project.title}</h2>
-            <p className="panel-text">{project.desc}</p>
+            <p className="panel-text">
+                Web developer building with <b>React</b>, and a hobbyist who
+                ships projects for the fun of it. I'm especially interested in
+                AI models: <b>robotics</b>, vision-language-action (<b>VLA</b>)
+                models, <b>computer vision</b> and <b>LLMs</b>.
+            </p>{" "}
             <div className="tag-container">
                 {project.tags.map((tag) => (
                     <span key={tag} className="tag">
@@ -871,7 +876,6 @@ const ProjectBody = ({ project }) => {
                 ))}
             </div>
             <LinkList links={project.links} />
-
             {zoomed && (
                 <Lightbox
                     src={project.image}
@@ -1185,8 +1189,10 @@ export default function App() {
                     <span className="caret" aria-hidden="true" />
                 </p>
                 <p className="subtitle">
-                    Software developer across <b>Web</b>, <b>AI</b>, and{" "}
-                    <b>Robotics</b> .
+                    Web developer working with <b>React</b>, with a deep
+                    interest in AI models, especially <b>robotics</b>,{" "}
+                    <b>VLAs</b>, <b>computer vision</b> and <b>LLMs</b>. I build
+                    projects as a hobby.
                 </p>
             </div>
 
