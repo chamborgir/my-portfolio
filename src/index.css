@@ -1,12 +1,11 @@
 /* ==========================================================================
    1. VARIABLES & THEMES  ("black" default, "midnight" deep navy)
-   Keep --accent, --text-muted and --bg-color as hex values: the Three.js
-   scene reads them to colour the helix.
+   Keep --accent, --text-muted, --bg-color and --red as hex values: the
+   Three.js scene reads them to colour the helix.
    ========================================================================== */
 :root,
 html[data-theme="black"] {
   --bg-color: #05070d;
-  --header-bg: rgba(5, 7, 13, 0.8);
   --surface: #0a0f1c;
   --text-main: #e8edf7;
   --text-muted: #8590a8;
@@ -15,13 +14,14 @@ html[data-theme="black"] {
   --accent-light: #0f1729;
   --border: #151d33;
   --glow: rgba(59, 130, 246, 0.09);
+  --red: #ff4d5e;
+  --red-soft: rgba(255, 77, 94, 0.18);
   --header-height: 72px;
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 html[data-theme="midnight"] {
   --bg-color: #0a1226;
-  --header-bg: rgba(10, 18, 38, 0.8);
   --surface: #0f1a35;
   --text-main: #e6ecfa;
   --text-muted: #8a99bd;
@@ -30,6 +30,23 @@ html[data-theme="midnight"] {
   --accent-light: #14224a;
   --border: #1b2a55;
   --glow: rgba(110, 162, 255, 0.11);
+  --red: #ff6b7a;
+  --red-soft: rgba(255, 107, 122, 0.2);
+}
+
+/* The Works view re-colours the whole interface red */
+.app.view-works {
+  --accent: #ff4d5e;
+  --accent-soft: rgba(255, 77, 94, 0.15);
+  --accent-light: #1c0f14;
+  --glow: rgba(255, 77, 94, 0.09);
+}
+
+html[data-theme="midnight"] .app.view-works {
+  --accent: #ff6b7a;
+  --accent-soft: rgba(255, 107, 122, 0.16);
+  --accent-light: #2a1830;
+  --glow: rgba(255, 107, 122, 0.1);
 }
 
 * {
@@ -133,7 +150,7 @@ button {
   user-select: none;
 }
 
-.logo-dot { color: var(--accent); }
+.logo-dot { color: var(--accent); transition: color 0.4s ease; }
 
 .theme-toggle {
   width: 30px;
@@ -174,8 +191,16 @@ button {
   position: fixed;
   z-index: 5;
   pointer-events: none;
-  transition: filter 0.4s ease;
+  transition: filter 0.4s ease, opacity 0.3s ease;
+  animation: intro-in 0.6s ease backwards;
 }
+
+@keyframes intro-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.app.phase-out .intro { opacity: 0; }
 
 @media (min-width: 700px) {
   .intro {
@@ -269,6 +294,38 @@ button {
   font-weight: 600;
 }
 
+/* Title and back button share one row, so the button never floats over the helix */
+.intro-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.6rem;
+}
+
+.intro-row h1 {
+  margin-bottom: 0;
+}
+
+.back-btn {
+  pointer-events: auto;
+  flex-shrink: 0;
+  padding: 0.4rem 0.95rem;
+  background: transparent;
+  color: var(--text-main);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s var(--ease);
+}
+
+.back-btn:hover {
+  background: var(--accent-soft);
+  transform: translateX(-2px);
+}
+
 .hint {
   position: fixed;
   left: 0;
@@ -299,12 +356,37 @@ button {
 }
 
 /* ==========================================================================
-   4. THE HELIX STAGE (canvas + node hit areas + cloud hints)
+   4. THE HELIX VIEW (canvas + node hit areas + clouds and previews)
    ========================================================================== */
-.stage {
+.view-wrap {
   position: fixed;
   inset: 0;
   z-index: 1;
+}
+
+/* Diving into the next helix, zooming from the tapped node */
+.app.phase-out .view-wrap {
+  transform-origin: var(--ox) var(--oy);
+  animation: dive-out 0.45s cubic-bezier(0.5, 0, 0.9, 0.4) both;
+  pointer-events: none;
+}
+
+.app.phase-in .view-wrap {
+  animation: dive-in 0.65s var(--ease) both;
+}
+
+@keyframes dive-out {
+  to { opacity: 0; transform: scale(1.5); }
+}
+
+@keyframes dive-in {
+  from { opacity: 0; transform: scale(0.82); }
+  to { opacity: 1; transform: none; }
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
   touch-action: none; /* drag gestures spin the helix instead of scrolling */
   user-select: none;
   -webkit-user-select: none;
@@ -314,9 +396,12 @@ button {
 
 .stage:active { cursor: grabbing; }
 
+/* The zoomed helix runs past the screen edges: fade the ends out softly */
 .three-mount {
   position: absolute;
   inset: 0;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 64px, #000 calc(100% - 64px), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 64px, #000 calc(100% - 64px), transparent 100%);
 }
 
 .three-mount canvas {
@@ -330,8 +415,8 @@ button {
   position: absolute;
   left: 0;
   top: 0;
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -339,6 +424,7 @@ button {
   cursor: pointer;
   will-change: transform;
   touch-action: none;
+  z-index: 2;
 }
 
 /* The small thought-cloud floating above a node */
@@ -356,10 +442,17 @@ button {
   font-weight: 500;
   letter-spacing: 0.01em;
   white-space: nowrap;
+  text-align: center;
   pointer-events: none;
   opacity: 0;
+  z-index: 1;
   will-change: transform, opacity;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4), 0 0 14px var(--accent-soft);
+}
+
+.cloud.tint-red {
+  border-color: var(--red);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4), 0 0 14px var(--red-soft);
 }
 
 .cloud-text {
@@ -367,6 +460,27 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Project preview that pops up on hover (or on the facing node on touch) */
+.cloud-preview {
+  display: none;
+  width: 160px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  background: #02040a;
+}
+
+.cloud.expanded {
+  max-width: 176px;
+  padding: 6px 6px 0.3rem;
+  border-radius: 14px;
+  border-color: var(--accent);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 20px var(--accent-soft);
+}
+
+.cloud.expanded .cloud-preview { display: block; }
 
 /* Two little circles trailing down toward the node, like a thought bubble */
 .cloud::before,
@@ -577,7 +691,7 @@ button {
   font-weight: 600;
 }
 
-/* Landscape 16:9 GIF, shown large */
+/* Landscape 16:9 GIF preview */
 .preview-media {
   display: block;
   width: 100%;
@@ -600,6 +714,109 @@ button {
   font-size: 0.9rem;
 }
 
+/* ---------- Tap-to-expand GIF ---------- */
+.preview-btn {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: 10px;
+  margin-bottom: 1.4rem;
+  cursor: zoom-in;
+  transition: transform 0.3s var(--ease);
+}
+
+.preview-btn:hover { transform: translateY(-2px); }
+.preview-btn .preview-media { margin-bottom: 0; }
+
+.expand-badge {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(5, 7, 13, 0.75);
+  border: 1px solid var(--border);
+  color: var(--text-main);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  pointer-events: none;
+}
+
+.preview-btn:hover .expand-badge,
+.preview-btn:focus-visible .expand-badge {
+  opacity: 1;
+  transform: none;
+}
+
+@media (hover: none) {
+  .expand-badge { opacity: 1; transform: none; }
+}
+
+/* Full-screen viewer (project GIFs and review screenshots) */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(2, 4, 10, 0.94);
+  cursor: zoom-out;
+  animation: fade-in 0.25s ease both;
+}
+
+.lightbox-img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7), 0 0 60px var(--accent-soft);
+  background: #02040a;
+  touch-action: pinch-zoom;
+  animation: lightbox-in 0.35s var(--ease) both;
+}
+
+.lightbox-close {
+  position: absolute;
+  top: max(1rem, env(safe-area-inset-top));
+  right: 1rem;
+  z-index: 1;
+  background: var(--surface);
+}
+
+.lightbox-hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: max(0.75rem, env(safe-area-inset-bottom));
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+@keyframes lightbox-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- About ---------- */
 .about-grid {
   display: grid;
   grid-template-columns: 280px 1fr;
@@ -613,7 +830,6 @@ button {
   object-fit: cover;
   object-position: center top;
   border-radius: 12px;
-  /* filter: grayscale(100%) contrast(1.05); */
   border: 1px solid var(--border);
 }
 
@@ -667,6 +883,7 @@ button {
   background: var(--accent-soft);
 }
 
+/* ---------- Projects ---------- */
 .tag-container {
   display: flex;
   flex-wrap: wrap;
@@ -717,6 +934,7 @@ button {
   user-select: none;
 }
 
+/* ---------- Skills ---------- */
 .skills-body {
   display: grid;
   gap: 1rem;
@@ -740,6 +958,87 @@ button {
 
 .skill-group .tag-container { margin-bottom: 0; }
 
+/* ---------- Reviews (screenshots) ---------- */
+.review-list {
+  list-style: none;
+  display: grid;
+  gap: 1.1rem;
+}
+
+.review-card {
+  padding: 1rem 1.15rem 1.15rem;
+  background: var(--bg-color);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.review-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin-bottom: 0.8rem;
+}
+
+.review-name {
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.review-source {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.shot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.75rem;
+}
+
+.shot-grid.single {
+  grid-template-columns: minmax(0, 380px);
+}
+
+/* Thumbnail shows the top of the screenshot; tapping opens it full size */
+.shot-btn {
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #02040a;
+  aspect-ratio: 4 / 3;
+  cursor: zoom-in;
+  transition: transform 0.25s var(--ease), border-color 0.2s ease;
+}
+
+.shot-btn:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+}
+
+.shot-btn img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+}
+
+.shot-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 110px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: var(--accent-light);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* ---------- Contact ---------- */
 .email-copy {
   display: inline-block;
   max-width: 100%;
@@ -788,110 +1087,8 @@ button {
   .status-dot::after { animation: none; }
   .modal-zoom,
   .modal-backdrop,
-  .modal-body { animation-duration: 0.01s; }
-}
-
-/* ---------- Tap-to-expand GIF ---------- */
-.preview-btn {
-  position: relative;
-  display: block;
-  width: 100%;
-  padding: 0;
-  border: 0;
-  background: none;
-  border-radius: 10px;
-  margin-bottom: 1.4rem;
-  cursor: zoom-in;
-  transition: transform 0.3s var(--ease);
-}
-
-.preview-btn:hover { transform: translateY(-2px); }
-
-/* the button now carries the spacing */
-.preview-btn .preview-media { margin-bottom: 0; }
-
-.expand-badge {
-  position: absolute;
-  right: 10px;
-  bottom: 10px;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  background: rgba(5, 7, 13, 0.75);
-  border: 1px solid var(--border);
-  color: var(--text-main);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  padding: 0.3rem 0.65rem;
-  border-radius: 999px;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  opacity: 0;
-  transform: translateY(4px);
-  transition: opacity 0.25s ease, transform 0.25s ease;
-  pointer-events: none;
-}
-
-.preview-btn:hover .expand-badge,
-.preview-btn:focus-visible .expand-badge {
-  opacity: 1;
-  transform: none;
-}
-
-/* Touch screens have no hover, so the hint stays visible */
-@media (hover: none) {
-  .expand-badge { opacity: 1; transform: none; }
-}
-
-/* Full-screen viewer */
-.lightbox {
-  position: fixed;
-  inset: 0;
-  z-index: 1100; /* above the modal (1000) */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-  background: rgba(2, 4, 10, 0.94);
-  cursor: zoom-out;
-  animation: fade-in 0.25s ease both;
-}
-
-.lightbox-img {
-  display: block;
-  max-width: 100%;
-  max-height: 100%;
-  width: auto;
-  height: auto;
-  object-fit: contain; /* whole GIF visible, nothing cropped */
-  border-radius: 8px;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7), 0 0 60px var(--accent-soft);
-  background: #02040a;
-  touch-action: pinch-zoom; /* phones can pinch to zoom in further */
-  animation: lightbox-in 0.35s var(--ease) both;
-}
-
-.lightbox-close {
-  position: absolute;
-  top: max(1rem, env(safe-area-inset-top));
-  right: 1rem;
-  z-index: 1;
-  background: var(--surface);
-}
-
-.lightbox-hint {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: max(0.75rem, env(safe-area-inset-bottom));
-  text-align: center;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  pointer-events: none;
-}
-
-@keyframes lightbox-in {
-  from { opacity: 0; transform: scale(0.96); }
-  to { opacity: 1; transform: none; }
+  .modal-body,
+  .intro,
+  .app.phase-out .view-wrap,
+  .app.phase-in .view-wrap { animation-duration: 0.01s; }
 }

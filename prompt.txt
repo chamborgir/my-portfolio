@@ -1,0 +1,2 @@
+lets split the app.jsx to multiple jsx files
+one for helix, for pages, for projects, for reviews and split the css to general style, helix style, modals, reviews, media query

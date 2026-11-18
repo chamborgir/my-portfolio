@@ -3,11 +3,12 @@ import React, {
     useEffect,
     useRef,
     useCallback,
+    useMemo,
     forwardRef,
     useImperativeHandle,
 } from "react";
-import * as THREE from "three";
 import { createPortal } from "react-dom";
+import * as THREE from "three";
 import "./index.css";
 import profileImg from "./assets/pfp1.jpg";
 import work1Img from "./assets/work1.gif";
@@ -15,8 +16,15 @@ import work2Img from "./assets/work2.gif";
 import work3Img from "./assets/work3.gif";
 import work4Img from "./assets/work4.gif";
 import work5Img from "./assets/work5.gif";
-// import work6Img from "./assets/work6.gif";
-// import work7Img from "./assets/work7.gif";
+
+/* ------------------------------------------------------------------
+   REVIEW SCREENSHOTS: step 1 of 2
+   Put your screenshot files in  src/assets/reviews/  and import each
+   one here. Uncomment the lines below once the files exist.
+   ------------------------------------------------------------------ */
+// import review1Img from "./assets/reviews/review1.png";
+// import review2Img from "./assets/reviews/review2.png";
+// import review3Img from "./assets/reviews/review3.png"; // <- new one? add a line like this
 
 /* ==================================================================
    DATA
@@ -24,6 +32,71 @@ import work5Img from "./assets/work5.gif";
 
 const EMAIL = "chamboquilon1@gmail.com";
 
+const ROLES = [
+    "modern React apps",
+    "AI-powered tools",
+    "robotic VLA pipelines",
+    "computer vision projects",
+    "LLM-driven apps",
+];
+
+const SKILLS = [
+    {
+        group: "Programming Languages",
+        items: ["Python", "JavaScript (ES6+)", "C++", "Java", "SQL"],
+    },
+    {
+        group: "Web Development & Deployment",
+        items: [
+            "React",
+            "Node.js",
+            "Vite",
+            "Three.js",
+            "Git/GitHub",
+            "Vercel",
+            "Supabase (PostgreSQL)",
+        ],
+    },
+    {
+        group: "AI, Robotics & Computer Vision",
+        items: [
+            "PyTorch",
+            "OpenCV",
+            "Hugging Face",
+            "Gemini API",
+            "Webots",
+            "ML Pipelines",
+        ],
+    },
+];
+
+/* ------------------------------------------------------------------
+   REVIEW SCREENSHOTS: step 2 of 2
+   One entry per person. To add a NEW review, copy a block below,
+   paste it at the end of the list (before the closing ];), then fill
+   in the name and the screenshot(s).
+
+     name    -> the reviewee's name
+     source  -> optional small label, e.g. "Messenger" or "Client project"
+     images  -> one or more screenshots, e.g. [review1Img] or [review1Img, review2Img]
+                (leave [] and a "Screenshot coming soon" box shows)
+   ------------------------------------------------------------------ */
+const REVIEWS = [
+    // Review 1
+    {
+        name: "Reviewee name",
+        source: "",
+        images: [], // e.g. [review1Img]
+    },
+    // Review 2
+    {
+        name: "Reviewee name",
+        source: "",
+        images: [], // e.g. [review2Img]
+    },
+];
+
+// Add more works here and they appear on the red helix automatically
 const projectList = [
     {
         short: "VLA Robotics",
@@ -54,7 +127,7 @@ const projectList = [
     {
         short: "UFO Shooter",
         image: work2Img,
-        type: "Games",
+        type: "Web",
         title: "3D UFO Asteroid Shooter",
         category: "Project #2",
         desc: "An atmospheric 3D space arcade experience. Pilot a craft across 10 distinct celestial bodies, locating a randomly spawned weapon attachment to clear incoming asteroid hazards.",
@@ -109,80 +182,25 @@ const projectList = [
             { label: "Live Demo", url: "#" },
         ],
     },
-    // Add more works here and they appear on the helix automatically:
-    // {
-    //     short: "Project 6",
-    //     image: null, // e.g. work6Img
-    //     type: "Web",
-    //     title: "Project Title #6",
-    //     category: "Project #6",
-    //     desc: "Short description.",
-    //     tags: ["React"],
-    //     links: [{ label: "GitHub", url: "#" }],
-    // },
 ];
 
-const SKILLS = [
-    {
-        group: "Programming Languages",
-        items: [
-            "Python",
-            "JavaScript (ES6+)",
-            "C++",
-            "Java",
-            "GDScript",
-            "SQL",
-        ],
-    },
-    {
-        group: "Web Development & Deployment",
-        items: [
-            "React",
-            "Node.js",
-            "Vite",
-            "Three.js",
-            "Git/GitHub",
-            "Vercel",
-            "Supabase (PostgreSQL)",
-        ],
-    },
-    {
-        group: "AI, Robotics & Computer Vision",
-        items: [
-            "PyTorch",
-            "OpenCV",
-            "Hugging Face",
-            "Gemini API",
-            "Webots",
-            "ML Pipelines",
-        ],
-    },
-];
-
-const ROLES = [
-    "modern React apps",
-    "AI-powered tools",
-    "robotic VLA pipelines",
-    "computer vision projects",
-    "LLM-driven apps",
-];
-
-// Everything that lives on the helix, from top to bottom
-const ITEMS = [
+// Nodes on the main (blue) helix
+const MAIN_ITEMS = [
     { id: "about", kind: "about", label: "About", kicker: "About me" },
-    ...projectList.map((p, i) => ({
-        id: `work-${i + 1}`,
-        kind: "project",
-        label: p.short,
-        kicker: `${p.category} · ${p.type}`,
-        project: p,
-    })),
     {
         id: "skills",
         kind: "skills",
         label: "Skills",
         kicker: "Professional skills",
     },
+    {
+        id: "works",
+        kind: "works",
+        label: "Works",
+        kicker: "Selected works",
+        tint: "red",
+    },
+    { id: "reviews", kind: "reviews", label: "Reviews", kicker: "Reviews" },
     {
         id: "contact",
         kind: "contact",
@@ -191,22 +209,78 @@ const ITEMS = [
     },
 ];
 
+// Nodes on the Works (red) helix
+const WORK_ITEMS = projectList.map((p, i) => ({
+    id: `work-${i + 1}`,
+    kind: "project",
+    label: p.short,
+    kicker: `${p.category} · ${p.type}`,
+    image: p.image,
+    project: p,
+}));
+
+const ALL_ITEMS = [...MAIN_ITEMS, ...WORK_ITEMS];
+
+const lsGet = (key) => {
+    try {
+        return localStorage.getItem(key);
+    } catch (e) {
+        return null;
+    }
+};
+const lsSet = (key, value) => {
+    try {
+        localStorage.setItem(key, value);
+    } catch (e) {
+        /* storage unavailable */
+    }
+};
+
 /* ==================================================================
    HELIX GEOMETRY (world units)
    ================================================================== */
 
 const TAU = Math.PI * 2;
-const RADIUS = 1.6;
+const RADIUS = 1.9;
 const HEIGHT = 9;
-const TURNS = 2.2;
-const PAIRS = ITEMS.length * 3; // rungs; every 3rd one carries a node
+const PAD = 6;
+const FULL = HEIGHT + PAD * 2;
+const FOLD_ZOOM = 1.12; // extra zoom on foldable-sized screens (1 = none)
 const FOV = 40;
 const CAM_Z = 14;
 
-// Node k sits at parameter t along the helix, alternating strands
-const nodeT = (k) => (k + 0.5) / ITEMS.length;
-const nodeAngle = (k) => nodeT(k) * TURNS * TAU + (k % 2) * Math.PI;
-const nodeY = (k) => (0.5 - nodeT(k)) * HEIGHT;
+// Change this number to get a different random arrangement of the nodes
+const NODE_SEED = 7;
+
+// Small seeded random generator: random-looking, but identical on every visit
+const mulberry32 = (a) => () => {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+};
+
+// Every helix is sized from its number of nodes. Nodes get a jittered height
+// along the helix and a random strand, so they look scattered.
+const makeGeom = (n, seed) => {
+    const turns = Math.max(1.8, n * 0.34);
+    const rand = mulberry32(seed + n * 101);
+    const ts = [];
+    const angles = [];
+    for (let k = 0; k < n; k++) {
+        const t = (k + 0.5) / n + (rand() - 0.5) * (0.7 / n);
+        ts.push(t);
+        angles.push(t * turns * TAU + (rand() < 0.5 ? 0 : Math.PI));
+    }
+    return {
+        n,
+        turns,
+        pairs: Math.round((turns * 9 * FULL) / HEIGHT),
+        nodeAngle: (k) => angles[k],
+        nodeY: (k) => (0.5 - ts[k]) * HEIGHT,
+    };
+};
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 
@@ -273,10 +347,13 @@ const CursorGlow = () => {
 };
 
 /* ==================================================================
-   THE HELIX (Three.js scene + DOM hit areas and cloud hints)
+   THE HELIX (Three.js scene + DOM hit areas, clouds and previews)
    ================================================================== */
 
-const Helix = forwardRef(function Helix({ onOpen, activeId, paused }, ref) {
+const Helix = forwardRef(function Helix(
+    { items, onOpen, activeId, paused },
+    ref,
+) {
     const stageRef = useRef(null);
     const mountRef = useRef(null);
     const hitRefs = useRef({});
@@ -285,6 +362,11 @@ const Helix = forwardRef(function Helix({ onOpen, activeId, paused }, ref) {
     const pausedRef = useRef(paused);
     const activeRef = useRef(activeId);
     const focusTarget = useRef(null);
+    const itemsRef = useRef(items);
+    const geom = useMemo(
+        () => makeGeom(items.length, NODE_SEED),
+        [items.length],
+    );
     const st = useRef({
         angle: 0.6,
         vel: 0,
@@ -302,13 +384,14 @@ const Helix = forwardRef(function Helix({ onOpen, activeId, paused }, ref) {
 
     pausedRef.current = paused;
     activeRef.current = activeId;
+    itemsRef.current = items;
 
     // Rotates the helix so a given node faces the viewer
     useImperativeHandle(ref, () => ({
         focusItem(id) {
-            const k = ITEMS.findIndex((i) => i.id === id);
+            const k = itemsRef.current.findIndex((i) => i.id === id);
             if (k < 0) return;
-            const want = nodeAngle(k) - Math.PI / 2;
+            const want = geom.nodeAngle(k) - Math.PI / 2;
             const cur = st.current.angle;
             const diff =
                 ((((want - cur + Math.PI) % TAU) + TAU) % TAU) - Math.PI;
@@ -323,6 +406,10 @@ const Helix = forwardRef(function Helix({ onOpen, activeId, paused }, ref) {
         const reduce = window.matchMedia(
             "(prefers-reduced-motion: reduce)",
         ).matches;
+        const isTouch = window.matchMedia("(hover: none)").matches;
+        const G = geom;
+        const list = items;
+        const N = list.length;
 
         let renderer;
         try {
@@ -340,31 +427,39 @@ const Helix = forwardRef(function Helix({ onOpen, activeId, paused }, ref) {
         mount.appendChild(renderer.domElement);
 
         const scene = new THREE.Scene();
-        scene.fog = new THREE.Fog(0x05070d, 11.5, 18); // back strand fades into the background
+        scene.fog = new THREE.Fog(0x05070d, 11.5, 19);
         const camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 60);
         camera.position.z = CAM_Z;
 
         const group = new THREE.Group();
-        group.rotation.order = "ZXY"; // spin around the helix axis first, then tilt
+        group.rotation.order = "ZXY";
         scene.add(group);
 
-        /* ----- Materials (colours are set from CSS variables) ----- */
+        /* ----- Materials (colours come from CSS variables) ----- */
         const matA = new THREE.MeshBasicMaterial({ color: 0x4f8cff });
         const matB = new THREE.MeshBasicMaterial({ color: 0x8590a8 });
         const nodeMat = new THREE.MeshBasicMaterial({ color: 0x4f8cff });
+        const nodeMatRed = new THREE.MeshBasicMaterial({ color: 0xff4d5e });
         const rungMat = new THREE.LineBasicMaterial({
             color: 0x4f8cff,
             transparent: true,
             opacity: 0.28,
         });
         const glowTex = makeGlowTexture();
-        const glowMat = new THREE.SpriteMaterial({
+        const glowOpts = {
             map: glowTex,
-            color: 0x4f8cff,
             transparent: true,
             opacity: 0.8,
             depthWrite: false,
             blending: THREE.AdditiveBlending,
+        };
+        const glowMat = new THREE.SpriteMaterial({
+            ...glowOpts,
+            color: 0x4f8cff,
+        });
+        const glowMatRed = new THREE.SpriteMaterial({
+            ...glowOpts,
+            color: 0xff4d5e,
         });
         const dustMat = new THREE.PointsMaterial({
             color: 0x4f8cff,
@@ -374,24 +469,47 @@ const Helix = forwardRef(function Helix({ onOpen, activeId, paused }, ref) {
             depthWrite: false,
         });
 
+        /* ----- End caps: on a phone held upright, trim the strands back to the original helix length ----- */
+        renderer.localClippingEnabled = true;
+        const clipTop = new THREE.Plane(
+            new THREE.Vector3(0, -1, 0),
+            HEIGHT / 2,
+        ); // keeps y <= top
+        const clipBottom = new THREE.Plane(
+            new THREE.Vector3(0, 1, 0),
+            HEIGHT / 2,
+        ); // keeps y >= bottom
+        const clipWorld = [new THREE.Plane(), new THREE.Plane()];
+        let capped = false;
+        const setCapped = (next) => {
+            if (next === capped) return;
+            capped = next;
+            [matA, matB, rungMat].forEach((m) => {
+                m.clippingPlanes = next ? clipWorld : null;
+                m.needsUpdate = true;
+            });
+        };
+
         /* ----- Strands: two thin tubes ----- */
+        /* ----- Strands: two thin tubes (longer than the node area) ----- */
         const strandGeo = (s) => {
+            const segs = Math.round((160 * FULL) / HEIGHT);
             const pts = [];
-            for (let i = 0; i <= 140; i++) {
-                const t = i / 140;
-                const th = t * TURNS * TAU + s * Math.PI;
+            for (let i = 0; i <= segs; i++) {
+                const y = (0.5 - i / segs) * FULL;
+                const th = (0.5 - y / HEIGHT) * G.turns * TAU + s * Math.PI;
                 pts.push(
                     new THREE.Vector3(
                         Math.cos(th) * RADIUS,
-                        (0.5 - t) * HEIGHT,
+                        y,
                         Math.sin(th) * RADIUS,
                     ),
                 );
             }
             return new THREE.TubeGeometry(
                 new THREE.CatmullRomCurve3(pts),
-                140,
-                0.03,
+                segs,
+                0.036,
                 6,
                 false,
             );
@@ -400,16 +518,15 @@ const Helix = forwardRef(function Helix({ onOpen, activeId, paused }, ref) {
         const geoB = strandGeo(1);
         group.add(new THREE.Mesh(geoA, matA), new THREE.Mesh(geoB, matB));
 
-        /* ----- Base pairs: thin rungs + tiny spheres at each end ----- */
-        const baseGeo = new THREE.SphereGeometry(0.05, 8, 8);
-        const baseA = new THREE.InstancedMesh(baseGeo, matA, PAIRS);
-        const baseB = new THREE.InstancedMesh(baseGeo, matB, PAIRS);
+        /* ----- Base pairs ----- */
+        const baseGeo = new THREE.SphereGeometry(0.055, 8, 8);
+        const baseA = new THREE.InstancedMesh(baseGeo, matA, G.pairs);
+        const baseB = new THREE.InstancedMesh(baseGeo, matB, G.pairs);
         const dummy = new THREE.Object3D();
         const rungPts = [];
-        for (let j = 0; j < PAIRS; j++) {
-            const t = (j + 0.5) / PAIRS;
-            const th = t * TURNS * TAU;
-            const y = (0.5 - t) * HEIGHT;
+        for (let j = 0; j < G.pairs; j++) {
+            const y = (0.5 - (j + 0.5) / G.pairs) * FULL;
+            const th = (0.5 - y / HEIGHT) * G.turns * TAU;
             const ax = Math.cos(th) * RADIUS;
             const az = Math.sin(th) * RADIUS;
             dummy.position.set(ax, y, az);
@@ -426,54 +543,65 @@ const Helix = forwardRef(function Helix({ onOpen, activeId, paused }, ref) {
         const rungGeo = new THREE.BufferGeometry().setFromPoints(rungPts);
         group.add(baseA, baseB, new THREE.LineSegments(rungGeo, rungMat));
 
-        /* ----- Content nodes: a sphere + soft glow for each portfolio part ----- */
-        const nodeGeo = new THREE.SphereGeometry(0.13, 16, 16);
+        /* ----- Content nodes (scattered along the helix) ----- */
+        const nodeGeo = new THREE.SphereGeometry(0.15, 16, 16);
         const nodeLocal = [];
         const nodeMeshes = [];
         const nodeGlows = [];
-        ITEMS.forEach((_, k) => {
-            const th = nodeAngle(k);
+        const nodeYs = [];
+        list.forEach((it, k) => {
+            const th = G.nodeAngle(k);
+            const y = G.nodeY(k);
+            nodeYs.push(y);
             const pos = new THREE.Vector3(
                 Math.cos(th) * RADIUS,
-                nodeY(k),
+                y,
                 Math.sin(th) * RADIUS,
             );
             nodeLocal.push(pos);
-            const mesh = new THREE.Mesh(nodeGeo, nodeMat);
+            const red = it.tint === "red";
+            const mesh = new THREE.Mesh(nodeGeo, red ? nodeMatRed : nodeMat);
             mesh.position.copy(pos);
-            const glow = new THREE.Sprite(glowMat);
+            const glow = new THREE.Sprite(red ? glowMatRed : glowMat);
             glow.position.copy(pos);
-            glow.scale.setScalar(0.7);
+            glow.scale.setScalar(0.8);
             group.add(mesh, glow);
             nodeMeshes.push(mesh);
             nodeGlows.push(glow);
         });
+        const minNodeY = Math.min(...nodeYs);
+        const maxNodeY = Math.max(...nodeYs);
+        const nodeSpan = Math.max(maxNodeY - minNodeY, 3);
+        const nodeMid = (minNodeY + maxNodeY) / 2;
 
-        /* ----- A little drifting dust (tiny, cheap) ----- */
+        /* ----- A little drifting dust ----- */
         const dustCount = 70;
         const dustPos = new Float32Array(dustCount * 3);
         for (let i = 0; i < dustCount; i++) {
-            dustPos[i * 3] = (Math.random() - 0.5) * 8;
-            dustPos[i * 3 + 1] = (Math.random() - 0.5) * 10;
-            dustPos[i * 3 + 2] = (Math.random() - 0.5) * 6;
+            dustPos[i * 3] = (Math.random() - 0.5) * 9;
+            dustPos[i * 3 + 1] = (Math.random() - 0.5) * 11;
+            dustPos[i * 3 + 2] = (Math.random() - 0.5) * 7;
         }
         const dustGeo = new THREE.BufferGeometry();
         dustGeo.setAttribute("position", new THREE.BufferAttribute(dustPos, 3));
         const dust = new THREE.Points(dustGeo, dustMat);
         scene.add(dust);
 
-        /* ----- Theme colours ----- */
+        /* ----- Theme colours (read from the stage, so the red view turns red) ----- */
         const applyTheme = () => {
-            const cs = getComputedStyle(document.documentElement);
+            const cs = getComputedStyle(stage);
             const accent = cs.getPropertyValue("--accent").trim();
             const muted = cs.getPropertyValue("--text-muted").trim();
             const bg = cs.getPropertyValue("--bg-color").trim();
+            const red = cs.getPropertyValue("--red").trim();
             matA.color.set(accent);
             nodeMat.color.set(accent);
             rungMat.color.set(accent);
             glowMat.color.set(accent);
             dustMat.color.set(accent);
             matB.color.set(muted);
+            nodeMatRed.color.set(red);
+            glowMatRed.color.set(red);
             scene.fog.color.set(bg);
         };
         applyTheme();
@@ -483,14 +611,14 @@ const Helix = forwardRef(function Helix({ onOpen, activeId, paused }, ref) {
             attributeFilter: ["data-theme"],
         });
 
-        /* ----- Layout: fit the whole helix into the free area of the screen ----- */
+        /* ----- Layout: zoomed in. The helix is sized so the NODES fill the screen;
+                 the ends of the helix may run past the edges. ----- */
         let W = 0;
         let H = 0;
         let fitScale = 1;
         const layout = () => {
             const w = window.innerWidth;
             const h = window.innerHeight;
-            // Ignore small height jitters from mobile address bars
             if (w === W && Math.abs(h - H) < 120) return;
             W = w;
             H = h;
@@ -500,26 +628,42 @@ const Helix = forwardRef(function Helix({ onOpen, activeId, paused }, ref) {
 
             const wpp = (2 * Math.tan((FOV * Math.PI) / 360) * CAM_Z) / h; // world per pixel
             const mobile = w < 700;
-            const top = mobile ? 235 : 90; // phones reserve room for the intro text
-            const bottom = mobile ? 70 : 60;
+            const ratio = w / h;
+            // Unfolded foldables have roughly square screens
+            const foldable =
+                w >= 500 && w <= 1100 && ratio >= 0.72 && ratio <= 1.4;
+
+            // Phone held upright: no extra strands, so nothing runs up into the intro text
+            setCapped(mobile && h > w);
+
+            const top = mobile ? (foldable ? 215 : 235) : foldable ? 88 : 100;
+            const bottom = foldable ? 64 : 80;
             const regionH = Math.max(240, h - top - bottom);
-            const widthPx = mobile ? w * 0.5 : Math.min(w * 0.3, 420);
-            fitScale = Math.min(
-                (regionH * wpp) / HEIGHT,
-                (widthPx * wpp) / (2 * RADIUS),
-            );
+            const widthPx = mobile
+                ? w * 0.62
+                : Math.min(w * (foldable ? 0.46 : 0.4), 600);
+            fitScale =
+                Math.min(
+                    1.6,
+                    (regionH * wpp) / nodeSpan,
+                    (widthPx * wpp) / (2 * RADIUS),
+                ) * (foldable ? FOLD_ZOOM : 1);
             const cxPx = mobile ? w / 2 : w * 0.62;
             const cyPx = top + regionH / 2;
 
             group.scale.setScalar(fitScale);
-            group.position.set((cxPx - w / 2) * wpp, (h / 2 - cyPx) * wpp, 0);
+            group.position.set(
+                (cxPx - w / 2) * wpp,
+                (h / 2 - cyPx) * wpp - nodeMid * fitScale,
+                0,
+            );
             dust.scale.setScalar(fitScale);
             dust.position.copy(group.position);
         };
         layout();
         window.addEventListener("resize", layout);
 
-        /* ----- Extra input: mouse wheel and arrow keys spin the helix ----- */
+        /* ----- Wheel and arrow keys spin the helix ----- */
         const onWheel = (e) => {
             if (pausedRef.current) return;
             const s = st.current;
@@ -539,7 +683,11 @@ const Helix = forwardRef(function Helix({ onOpen, activeId, paused }, ref) {
         /* ----- Render loop ----- */
         const tmp = new THREE.Vector3();
         const proj = new THREE.Vector3();
-        const hotAmt = ITEMS.map(() => 0);
+        const hotAmt = list.map(() => 0);
+        const frontVals = list.map(() => 0);
+        const screenX = list.map(() => 0);
+        const screenY = list.map(() => 0);
+        const expandedState = list.map(() => false);
         let idle = 0.22;
         let spinDust = 0;
         let last = performance.now();
@@ -549,11 +697,11 @@ const Helix = forwardRef(function Helix({ onOpen, activeId, paused }, ref) {
             raf = requestAnimationFrame(tick);
             const dt = Math.min((now - last) / 1000, 0.05);
             last = now;
-            if (pausedRef.current) return; // freeze while a modal is open
+            if (pausedRef.current) return;
 
             const s = st.current;
 
-            // Auto-spin slows down while a node is hovered so it's easy to click
+            // Auto-spin slows while a node is hovered so it's easy to click
             const idleTarget = reduce ? 0 : hoverRef.current ? 0.03 : 0.22;
             idle += (idleTarget - idle) * Math.min(1, dt * 4);
 
@@ -561,7 +709,7 @@ const Helix = forwardRef(function Helix({ onOpen, activeId, paused }, ref) {
                 s.angle += s.vel;
                 s.vel *= 0.95;
                 if (Math.abs(s.vel) < 1e-4) s.vel = 0;
-                s.tilt += (0 - s.tilt) * Math.min(1, dt * 2); // vertical drag eases back
+                s.tilt += (0 - s.tilt) * Math.min(1, dt * 2);
             }
             s.angle += idle * dt;
 
@@ -576,8 +724,16 @@ const Helix = forwardRef(function Helix({ onOpen, activeId, paused }, ref) {
             dust.rotation.y = spinDust;
             group.updateMatrixWorld(true);
 
-            // Project every node to the screen for its hit area + cloud hint
-            ITEMS.forEach((it, k) => {
+            if (capped) {
+                // the cut planes follow the helix as it spins and leans
+                clipWorld[0].copy(clipTop).applyMatrix4(group.matrixWorld);
+                clipWorld[1].copy(clipBottom).applyMatrix4(group.matrixWorld);
+            }
+
+            // Project nodes to the screen; find the one facing you most
+            let frontIdx = -1;
+            let frontMax = 0.85;
+            for (let k = 0; k < N; k++) {
                 tmp.copy(nodeLocal[k]).applyMatrix4(group.matrixWorld);
                 const front =
                     THREE.MathUtils.clamp(
@@ -587,29 +743,55 @@ const Helix = forwardRef(function Helix({ onOpen, activeId, paused }, ref) {
                     ) *
                         0.5 +
                     0.5;
+                frontVals[k] = front;
+                if (front > frontMax) {
+                    frontMax = front;
+                    frontIdx = k;
+                }
                 proj.copy(tmp).project(camera);
-                const sx = (proj.x * 0.5 + 0.5) * W;
-                const sy = (-proj.y * 0.5 + 0.5) * H;
+                screenX[k] = (proj.x * 0.5 + 0.5) * W;
+                screenY[k] = (-proj.y * 0.5 + 0.5) * H;
+            }
+
+            for (let k = 0; k < N; k++) {
+                const it = list[k];
+                const sx = screenX[k];
+                const sy = screenY[k];
 
                 const hot =
                     hoverRef.current === it.id || activeRef.current === it.id;
                 hotAmt[k] += ((hot ? 1 : 0) - hotAmt[k]) * Math.min(1, dt * 10);
                 nodeMeshes[k].scale.setScalar(1 + 0.7 * hotAmt[k]);
-                nodeGlows[k].scale.setScalar(0.7 + 0.9 * hotAmt[k]);
+                nodeGlows[k].scale.setScalar(0.8 + 0.9 * hotAmt[k]);
 
                 const hit = hitRefs.current[it.id];
                 if (hit) {
                     hit.style.transform = `translate3d(${sx}px,${sy}px,0) translate(-50%,-50%)`;
                 }
+
                 const cloud = cloudRefs.current[it.id];
                 if (cloud) {
-                    // Clouds appear for nodes facing you, or any node you hover/focus
-                    const vis = hot ? 1 : clamp01((front - 0.55) / 0.35);
-                    const cx = Math.max(60, Math.min(W - 60, sx));
+                    // Hover (or keyboard focus) shows the project preview.
+                    // On touch screens the node facing you previews by itself.
+                    const expanded =
+                        !!it.image && (hot || (isTouch && k === frontIdx));
+                    if (expandedState[k] !== expanded) {
+                        expandedState[k] = expanded;
+                        cloud.classList.toggle("expanded", expanded);
+                        cloud.style.zIndex = expanded ? 3 : 1;
+                    }
+                    const vis =
+                        hot || expanded
+                            ? 1
+                            : clamp01((frontVals[k] - 0.55) / 0.35);
+                    const half = expanded ? 92 : 60;
+                    const cx = Math.max(half, Math.min(W - half, sx));
+                    const minY = (expanded ? 132 : 34) + 64;
+                    const cy = Math.max(sy - 24 - hotAmt[k] * 4, minY);
                     cloud.style.opacity = vis;
-                    cloud.style.transform = `translate3d(${cx}px,${sy - 20 - hotAmt[k] * 4}px,0) translate(-50%,-100%)`;
+                    cloud.style.transform = `translate3d(${cx}px,${cy}px,0) translate(-50%,-100%)`;
                 }
-            });
+            }
 
             renderer.render(scene, camera);
         };
@@ -624,9 +806,16 @@ const Helix = forwardRef(function Helix({ onOpen, activeId, paused }, ref) {
             [geoA, geoB, baseGeo, rungGeo, nodeGeo, dustGeo].forEach((g) =>
                 g.dispose(),
             );
-            [matA, matB, nodeMat, rungMat, glowMat, dustMat].forEach((m) =>
-                m.dispose(),
-            );
+            [
+                matA,
+                matB,
+                nodeMat,
+                nodeMatRed,
+                rungMat,
+                glowMat,
+                glowMatRed,
+                dustMat,
+            ].forEach((m) => m.dispose());
             glowTex.dispose();
             renderer.dispose();
             renderer.forceContextLoss();
@@ -634,6 +823,7 @@ const Helix = forwardRef(function Helix({ onOpen, activeId, paused }, ref) {
                 mount.removeChild(renderer.domElement);
             }
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     /* ----- Drag to spin (horizontal) and lean (vertical). Taps still reach the nodes. ----- */
@@ -698,7 +888,7 @@ const Helix = forwardRef(function Helix({ onOpen, activeId, paused }, ref) {
 
             {noGL ? (
                 <div className="fallback">
-                    {ITEMS.map((item) => (
+                    {items.map((item) => (
                         <button
                             key={item.id}
                             className="btn btn-ghost"
@@ -709,13 +899,21 @@ const Helix = forwardRef(function Helix({ onOpen, activeId, paused }, ref) {
                     ))}
                 </div>
             ) : (
-                ITEMS.map((item) => (
+                items.map((item) => (
                     <React.Fragment key={item.id}>
                         <div
-                            className="cloud"
+                            className={`cloud ${item.tint ? `tint-${item.tint}` : ""}`}
                             ref={(el) => (cloudRefs.current[item.id] = el)}
                             aria-hidden="true"
                         >
+                            {item.image && (
+                                <img
+                                    className="cloud-preview"
+                                    src={item.image}
+                                    alt=""
+                                    draggable="false"
+                                />
+                            )}
                             <span className="cloud-text">{item.label}</span>
                         </div>
                         <button
@@ -731,7 +929,6 @@ const Helix = forwardRef(function Helix({ onOpen, activeId, paused }, ref) {
                             }}
                             onFocus={(e) => {
                                 hoverRef.current = item.id;
-                                // Keyboard users: turn the helix so the node faces them
                                 if (e.currentTarget.matches(":focus-visible")) {
                                     ref?.current?.focusItem(item.id);
                                 }
@@ -749,39 +946,10 @@ const Helix = forwardRef(function Helix({ onOpen, activeId, paused }, ref) {
 });
 
 /* ==================================================================
-   MODAL CONTENT
+   SMALL UI PIECES
    ================================================================== */
 
-const LinkList = ({ links }) => (
-    <div className="project-links-wrapper">
-        {links.map((link) => {
-            // Grayed out when flagged, empty, or still a "#" placeholder
-            const unavailable = link.disabled || !link.url || link.url === "#";
-            return unavailable ? (
-                <span
-                    key={link.label}
-                    className="project-link disabled"
-                    aria-disabled="true"
-                    title={link.note || "Not available"}
-                >
-                    {link.label}
-                </span>
-            ) : (
-                <a
-                    key={link.label}
-                    href={link.url}
-                    className="project-link"
-                    target="_blank"
-                    rel="noreferrer"
-                >
-                    {link.label} <span className="arrow">↗</span>
-                </a>
-            );
-        })}
-    </div>
-);
-
-// Full-screen GIF viewer. Rendered in a portal so the modal can't clip it.
+// Full-screen image viewer. Rendered in a portal so the modal can't clip it.
 const Lightbox = ({ src, alt, onClose }) => {
     useEffect(() => {
         // Capture phase: Esc and arrows only affect the lightbox, not the modal under it
@@ -817,6 +985,39 @@ const Lightbox = ({ src, alt, onClose }) => {
         document.body,
     );
 };
+
+/* ==================================================================
+   MODAL CONTENT
+   ================================================================== */
+
+const LinkList = ({ links }) => (
+    <div className="project-links-wrapper">
+        {links.map((link) => {
+            // Grayed out when flagged, empty, or still a "#" placeholder
+            const unavailable = link.disabled || !link.url || link.url === "#";
+            return unavailable ? (
+                <span
+                    key={link.label}
+                    className="project-link disabled"
+                    aria-disabled="true"
+                    title={link.note || "Not available"}
+                >
+                    {link.label}
+                </span>
+            ) : (
+                <a
+                    key={link.label}
+                    href={link.url}
+                    className="project-link"
+                    target="_blank"
+                    rel="noreferrer"
+                >
+                    {link.label} <span className="arrow">↗</span>
+                </a>
+            );
+        })}
+    </div>
+);
 
 const ProjectBody = ({ project }) => {
     const [zoomed, setZoomed] = useState(false);
@@ -861,13 +1062,9 @@ const ProjectBody = ({ project }) => {
                     <span>Preview coming soon</span>
                 </div>
             )}
+
             <h2 className="panel-title">{project.title}</h2>
-            <p className="panel-text">
-                Web developer building with <b>React</b>, and a hobbyist who
-                ships projects for the fun of it. I'm especially interested in
-                AI models: <b>robotics</b>, vision-language-action (<b>VLA</b>)
-                models, <b>computer vision</b> and <b>LLMs</b>.
-            </p>{" "}
+            <p className="panel-text">{project.desc}</p>
             <div className="tag-container">
                 {project.tags.map((tag) => (
                     <span key={tag} className="tag">
@@ -876,6 +1073,7 @@ const ProjectBody = ({ project }) => {
                 ))}
             </div>
             <LinkList links={project.links} />
+
             {zoomed && (
                 <Lightbox
                     src={project.image}
@@ -887,7 +1085,7 @@ const ProjectBody = ({ project }) => {
     );
 };
 
-const AboutBody = ({ onNavigate }) => (
+const AboutBody = ({ onSeeWorks, onNavigate }) => (
     <div className="about-grid">
         <img
             src={profileImg}
@@ -897,15 +1095,13 @@ const AboutBody = ({ onNavigate }) => (
         <div>
             <h2 className="panel-title">Hi, I'm Rochambeau.</h2>
             <p className="panel-text">
-                Software developer building modular, scalable web applications
-                with <b>React</b> and <b>AI integration</b>. Designing complex
-                interactive systems across <b>Robotics</b>.
+                Web developer building with <b>React</b>, and a hobbyist who
+                ships projects for the fun of it. I'm especially interested in
+                AI models: <b>robotics</b>, vision-language-action (<b>VLA</b>)
+                models, <b>computer vision</b> and <b>LLMs</b>.
             </p>
             <div className="hero-cta">
-                <button
-                    className="btn btn-primary"
-                    onClick={() => onNavigate("work-1")}
-                >
+                <button className="btn btn-primary" onClick={onSeeWorks}>
                     See my work
                 </button>
                 <button
@@ -935,6 +1131,76 @@ const SkillsBody = () => (
         ))}
     </div>
 );
+
+// Review screenshots, one card per person (edit the REVIEWS list near the top)
+const ReviewsBody = () => {
+    const [zoom, setZoom] = useState(null);
+    const closeZoom = useCallback(() => setZoom(null), []);
+
+    return (
+        <div>
+            <h2 className="panel-title">Reviews</h2>
+            <p className="panel-text">
+                Kind words from people I've worked with. Tap a screenshot to
+                view it full size.
+            </p>
+
+            {REVIEWS.length === 0 && (
+                <p className="panel-text">Reviews coming soon.</p>
+            )}
+
+            <ul className="review-list">
+                {REVIEWS.map((r, i) => (
+                    <li key={i} className="review-card">
+                        <div className="review-top">
+                            <span className="review-name">{r.name}</span>
+                            {r.source && (
+                                <span className="review-source">
+                                    {r.source}
+                                </span>
+                            )}
+                        </div>
+
+                        {r.images && r.images.length > 0 ? (
+                            <div
+                                className={`shot-grid ${r.images.length === 1 ? "single" : ""}`}
+                            >
+                                {r.images.map((src, j) => (
+                                    <button
+                                        key={j}
+                                        type="button"
+                                        className="shot-btn"
+                                        onClick={() =>
+                                            setZoom({
+                                                src,
+                                                alt: `Review from ${r.name}`,
+                                            })
+                                        }
+                                        aria-label={`View full-size review from ${r.name}`}
+                                    >
+                                        <img
+                                            src={src}
+                                            alt={`Review from ${r.name}`}
+                                            loading="lazy"
+                                        />
+                                    </button>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="shot-placeholder">
+                                Screenshot coming soon
+                            </div>
+                        )}
+                    </li>
+                ))}
+            </ul>
+
+            {zoom && (
+                <Lightbox src={zoom.src} alt={zoom.alt} onClose={closeZoom} />
+            )}
+        </div>
+    );
+};
 
 const ContactBody = () => {
     const [copied, setCopied] = useState(false);
@@ -986,18 +1252,34 @@ const ContactBody = () => {
 };
 
 /* ==================================================================
-   MODAL (zooms out of the clicked node, background blurred)
+   MODAL (zooms out of the tapped node, background blurred)
    ================================================================== */
 
-const Modal = ({ id, origin, closing, onClose, onNavigate }) => {
-    const index = ITEMS.findIndex((i) => i.id === id);
-    const item = ITEMS[index];
+const Modal = ({
+    id,
+    items,
+    origin,
+    closing,
+    onClose,
+    onNavigate,
+    onSeeWorks,
+}) => {
+    // The "Works" node opens the red helix instead of a modal, so skip it here
+    const navItems = items.filter((i) => i.kind !== "works");
+    const index = Math.max(
+        0,
+        navItems.findIndex((i) => i.id === id),
+    );
+    const item = navItems[index];
     const closeRef = useRef(null);
 
     const go = useCallback(
         (dir) =>
-            onNavigate(ITEMS[(index + dir + ITEMS.length) % ITEMS.length].id),
-        [index, onNavigate],
+            onNavigate(
+                navItems[(index + dir + navItems.length) % navItems.length].id,
+            ),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [index, navItems.length, onNavigate],
     );
 
     useEffect(() => {
@@ -1015,9 +1297,11 @@ const Modal = ({ id, origin, closing, onClose, onNavigate }) => {
     }, []);
 
     let body = null;
-    if (item.kind === "about") body = <AboutBody onNavigate={onNavigate} />;
+    if (item.kind === "about")
+        body = <AboutBody onSeeWorks={onSeeWorks} onNavigate={onNavigate} />;
     if (item.kind === "project") body = <ProjectBody project={item.project} />;
     if (item.kind === "skills") body = <SkillsBody />;
+    if (item.kind === "reviews") body = <ReviewsBody />;
     if (item.kind === "contact") body = <ContactBody />;
 
     return (
@@ -1044,7 +1328,7 @@ const Modal = ({ id, origin, closing, onClose, onNavigate }) => {
                                 ‹
                             </button>
                             <span className="modal-counter">
-                                {index + 1} / {ITEMS.length}
+                                {index + 1} / {navItems.length}
                             </span>
                             <button
                                 className="icon-btn"
@@ -1079,12 +1363,8 @@ const Modal = ({ id, origin, closing, onClose, onNavigate }) => {
 const Header = ({ theme, toggleTheme, onHome }) => (
     <header className="header">
         <div className="header-inner">
-            <button
-                className="logo"
-                onClick={onHome}
-                aria-label="Turn helix to About"
-            >
-                RB<span className="logo-dot">.</span>
+            <button className="logo" onClick={onHome} aria-label="Home">
+                RB<span className="logo-dot">.dev</span>
             </button>
             <button
                 className="theme-toggle"
@@ -1103,15 +1383,11 @@ const Header = ({ theme, toggleTheme, onHome }) => (
    ================================================================== */
 
 export default function App() {
-    const [theme, setTheme] = useState(() => {
-        try {
-            return localStorage.getItem("theme") === "midnight"
-                ? "midnight"
-                : "black";
-        } catch (e) {
-            return "black";
-        }
-    });
+    const [theme, setTheme] = useState(() =>
+        lsGet("theme") === "midnight" ? "midnight" : "black",
+    );
+    const [view, setView] = useState("main"); // "main" (blue) | "works" (red)
+    const [phase, setPhase] = useState("idle"); // idle | out | in
     const [openId, setOpenId] = useState(null);
     const [origin, setOrigin] = useState({ x: 0, y: 0 });
     const [closing, setClosing] = useState(false);
@@ -1121,30 +1397,58 @@ export default function App() {
     const openIdRef = useRef(null);
     const closingRef = useRef(false);
     const navigatedRef = useRef(false);
+    const busyRef = useRef(false);
     openIdRef.current = openId;
 
     const typed = useTypewriter(ROLES);
+    const items = view === "works" ? WORK_ITEMS : MAIN_ITEMS;
 
     useEffect(() => {
         document.documentElement.setAttribute("data-theme", theme);
-        try {
-            localStorage.setItem("theme", theme);
-        } catch (e) {
-            /* storage unavailable */
-        }
+        lsSet("theme", theme);
     }, [theme]);
 
-    const openItem = useCallback((id, el) => {
-        lastFocus.current = document.activeElement;
-        navigatedRef.current = false;
-        if (el) {
-            const r = el.getBoundingClientRect();
-            setOrigin({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
-        }
-        closingRef.current = false;
-        setClosing(false);
-        setOpenId(id);
+    // Dive into / out of the red helix
+    const switchView = useCallback((next, el) => {
+        if (busyRef.current) return;
+        busyRef.current = true;
+        const r = el?.getBoundingClientRect();
+        setOrigin(
+            r
+                ? { x: r.left + r.width / 2, y: r.top + r.height / 2 }
+                : { x: window.innerWidth / 2, y: window.innerHeight / 2 },
+        );
+        setPhase("out");
+        setTimeout(() => {
+            setView(next);
+            setPhase("in");
+            setTimeout(() => {
+                setPhase("idle");
+                busyRef.current = false;
+            }, 650);
+        }, 450);
     }, []);
+
+    const openItem = useCallback(
+        (id, el) => {
+            const it = ALL_ITEMS.find((i) => i.id === id);
+            if (!it) return;
+            if (it.kind === "works") {
+                switchView("works", el);
+                return;
+            }
+            lastFocus.current = document.activeElement;
+            navigatedRef.current = false;
+            if (el) {
+                const r = el.getBoundingClientRect();
+                setOrigin({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+            }
+            closingRef.current = false;
+            setClosing(false);
+            setOpenId(id);
+        },
+        [switchView],
+    );
 
     const navigate = useCallback((id) => {
         navigatedRef.current = true;
@@ -1168,53 +1472,109 @@ export default function App() {
         }, 280);
     }, []);
 
+    const seeWorks = useCallback(() => {
+        closeModal();
+        setTimeout(() => switchView("works", null), 340);
+    }, [closeModal, switchView]);
+
+    const goHome = () => {
+        if (view === "works") switchView("main", null);
+        else helixRef.current?.focusItem("about");
+    };
+
+    // Esc on the red helix goes back to the main one
+    useEffect(() => {
+        const onKey = (e) => {
+            if (e.key === "Escape" && !openIdRef.current && view === "works") {
+                switchView("main", null);
+            }
+        };
+        window.addEventListener("keydown", onKey);
+        return () => window.removeEventListener("keydown", onKey);
+    }, [view, switchView]);
+
     return (
-        <div className={`app ${openId ? "modal-open" : ""}`}>
+        <div
+            className={`app view-${view} phase-${phase} ${openId ? "modal-open" : ""}`}
+            style={{ "--ox": `${origin.x}px`, "--oy": `${origin.y}px` }}
+        >
             <CursorGlow />
             <Header
                 theme={theme}
                 toggleTheme={() =>
                     setTheme((t) => (t === "black" ? "midnight" : "black"))
                 }
-                onHome={() => helixRef.current?.focusItem("about")}
+                onHome={goHome}
             />
 
-            <div className="intro">
-                <span className="hero-eyebrow">
-                    <span className="status-dot" /> Available for work
-                </span>
-                <h1>Hi, I'm Rochambeau.</h1>
-                <p className="typed-line">
-                    I build <span className="typed">{typed}</span>
-                    <span className="caret" aria-hidden="true" />
-                </p>
-                <p className="subtitle">
-                    Web developer working with <b>React</b>, with a deep
-                    interest in AI models, especially <b>robotics</b>,{" "}
-                    <b>VLAs</b>, <b>computer vision</b> and <b>LLMs</b>. I build
-                    projects as a hobby.
-                </p>
+            {view === "works" ? (
+                <div className="intro" key="works">
+                    <span className="hero-eyebrow">
+                        <span className="status-dot" /> Selected works
+                    </span>
+                    <div className="intro-row">
+                        <h1>Things I've built.</h1>
+                        <button
+                            className="back-btn"
+                            onClick={() => switchView("main", null)}
+                            aria-label="Back to main helix"
+                        >
+                            Return
+                        </button>
+                    </div>
+                    <p className="subtitle">
+                        Hover a node to peek at the project, tap it to open the
+                        full preview.
+                    </p>
+                </div>
+            ) : (
+                <div className="intro" key="main">
+                    <span className="hero-eyebrow">
+                        <span className="status-dot" /> Available for work
+                    </span>
+                    <h1>Hi, I'm Rochambeau.</h1>
+                    <p className="typed-line">
+                        I build <span className="typed">{typed}</span>
+                        <span className="caret" aria-hidden="true" />
+                    </p>
+                    <p className="subtitle">
+                        Web developer working with <b>React</b>, with a deep
+                        interest in AI models, especially <b>robotics</b>,{" "}
+                        <b>VLAs</b>, <b>computer vision</b> and <b>LLMs</b>. I
+                        build projects as a hobby.
+                    </p>
+                </div>
+            )}
+
+            <div className="view-wrap">
+                <Helix
+                    key={view}
+                    ref={helixRef}
+                    items={items}
+                    onOpen={openItem}
+                    activeId={openId}
+                    paused={!!openId}
+                />
             </div>
 
-            <Helix
-                ref={helixRef}
-                onOpen={openItem}
-                activeId={openId}
-                paused={!!openId}
-            />
-
-            <p className="hint">Drag to spin · tap a node to explore</p>
+            <p className="hint">
+                {view === "works"
+                    ? "Drag to spin · tap a node to open · Esc to go back"
+                    : "Drag to spin · tap a node to explore"}
+            </p>
             <footer className="site-foot">
-                © {new Date().getFullYear()} — Built with React + Three.js
+                © {new Date().getFullYear()} — Built with React
             </footer>
 
             {openId && (
                 <Modal
                     id={openId}
+                    items={items}
                     origin={origin}
                     closing={closing}
                     onClose={closeModal}
                     onNavigate={navigate}
+                    onSeeWorks={seeWorks}
                 />
             )}
         </div>
