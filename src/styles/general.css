@@ -1,0 +1,402 @@
+/* ==========================================================================
+   GENERAL: themes, base, header, intro text, buttons, tags
+   Keep --accent, --text-muted, --bg-color and --red as hex values: the
+   Three.js scene reads them to colour the helix.
+   ========================================================================== */
+
+/* ---------- Themes: "dark" (dim bluish, default) and "light" ---------- */
+:root,
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-color: #0c1424;
+  --surface: #131d33;
+  --text-main: #e4eaf7;
+  --text-muted: #8a99b8;
+  --accent: #5b9bff;
+  --accent-soft: rgba(91, 155, 255, 0.16);
+  --accent-light: #17243f;
+  --border: #223152;
+  --glow: rgba(91, 155, 255, 0.1);
+  --red: #ff5a6e;
+  --red-soft: rgba(255, 90, 110, 0.2);
+  --on-accent: #07101f;
+  --backdrop: rgba(6, 11, 24, 0.58);
+  --shadow-sm: 0 4px 18px rgba(2, 6, 16, 0.45);
+  --shadow-lg: 0 30px 90px rgba(2, 6, 16, 0.7);
+  --glow-additive: 1; /* 1 = additive node glow (dark bg), 0 = normal blending */
+  --header-height: 72px;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+  --bg-color: #f5f7fb;
+  --surface: #ffffff;
+  --text-main: #0c1426;
+  --text-muted: #5a6479;
+  --accent: #2563eb;
+  --accent-soft: rgba(37, 99, 235, 0.12);
+  --accent-light: #e8eeff;
+  --border: #dbe2ef;
+  --glow: rgba(37, 99, 235, 0.08);
+  --red: #e11d48;
+  --red-soft: rgba(225, 29, 72, 0.14);
+  --on-accent: #ffffff;
+  --backdrop: rgba(12, 20, 38, 0.45);
+  --shadow-sm: 0 4px 18px rgba(12, 20, 38, 0.12);
+  --shadow-lg: 0 30px 90px rgba(12, 20, 38, 0.25);
+  --glow-additive: 0;
+}
+
+/* The Projects view re-colours the whole interface red */
+.app.view-projects {
+  --accent: #ff5a6e;
+  --accent-soft: rgba(255, 90, 110, 0.16);
+  --accent-light: #2a1827;
+  --glow: rgba(255, 90, 110, 0.1);
+}
+
+html[data-theme="light"] .app.view-projects {
+  --accent: #e11d48;
+  --accent-soft: rgba(225, 29, 72, 0.12);
+  --accent-light: #ffe8ee;
+  --glow: rgba(225, 29, 72, 0.08);
+}
+
+/* ---------- Base ---------- */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* The page itself never scrolls: only the helix moves */
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.6;
+  transition: background-color 0.4s ease, color 0.4s ease;
+}
+
+#root {
+  height: 100%;
+}
+
+::selection {
+  background: var(--accent);
+  color: #fff;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+button {
+  font-family: inherit;
+}
+
+.app {
+  position: fixed;
+  inset: 0;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.cursor-glow {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(
+    600px circle at var(--mx, 62%) var(--my, 45%),
+    var(--glow),
+    transparent 60%
+  );
+}
+
+/* ---------- Header ---------- */
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: var(--header-height);
+  z-index: 100;
+}
+
+.header-inner {
+  height: 100%;
+  padding: 0 max(1.5rem, 4vw);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo {
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  font-size: 1.25rem;
+  color: var(--text-main);
+  user-select: none;
+}
+
+.logo-dot {
+  color: var(--accent);
+  transition: color 0.4s ease;
+}
+
+.theme-toggle {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.theme-toggle:hover {
+  border-color: var(--accent);
+}
+
+.theme-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: block;
+}
+
+.theme-dot.dark {
+  background: #0c1424;
+  box-shadow: 0 0 0 1.5px var(--text-muted);
+}
+
+.theme-dot.light {
+  background: #f5f7fb;
+  box-shadow: 0 0 0 1.5px var(--accent);
+}
+
+/* ---------- Intro text, hint, footer ---------- */
+.intro {
+  position: fixed;
+  z-index: 5;
+  pointer-events: none;
+  transition: filter 0.4s ease, opacity 0.3s ease;
+  animation: intro-in 0.6s ease backwards;
+}
+
+@keyframes intro-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.app.phase-out .intro {
+  opacity: 0;
+}
+
+.hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--text-muted);
+  margin-bottom: 0.9rem;
+}
+
+.status-dot {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.status-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: ping 2s ease-out infinite;
+}
+
+@keyframes ping {
+  0% { transform: scale(1); opacity: 0.7; }
+  100% { transform: scale(3); opacity: 0; }
+}
+
+.intro h1 {
+  font-size: clamp(1.8rem, 4vw, 2.9rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  margin-bottom: 0.6rem;
+}
+
+.typed-line {
+  font-size: clamp(1rem, 2vw, 1.4rem);
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+  min-height: 2rem;
+}
+
+.typed {
+  color: var(--accent);
+}
+
+.caret {
+  display: inline-block;
+  width: 2px;
+  height: 1.2em;
+  margin-left: 3px;
+  vertical-align: text-bottom;
+  background: var(--accent);
+  animation: blink 1s steps(1) infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+.subtitle {
+  font-size: 1rem;
+  color: var(--text-muted);
+}
+
+.subtitle b {
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+/* Title and back button share one row, so the button never floats over the helix */
+.intro-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.6rem;
+}
+
+.intro-row h1 {
+  margin-bottom: 0;
+}
+
+.back-btn {
+  pointer-events: auto;
+  flex-shrink: 0;
+  padding: 0.4rem 0.95rem;
+  background: transparent;
+  color: var(--text-main);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s var(--ease);
+}
+
+.back-btn:hover {
+  background: var(--accent-soft);
+  transform: translateX(-2px);
+}
+
+.hint {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 1.25rem;
+  z-index: 5;
+  text-align: center;
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  pointer-events: none;
+  transition: filter 0.4s ease;
+}
+
+.site-foot {
+  position: fixed;
+  left: max(2rem, 6vw);
+  bottom: 1.25rem;
+  z-index: 5;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  pointer-events: none;
+  transition: filter 0.4s ease;
+}
+
+/* ---------- Buttons & tags (shared) ---------- */
+.btn {
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.7rem 1.4rem;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  cursor: pointer;
+  transition: transform 0.2s var(--ease), background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.btn-primary:hover {
+  box-shadow: 0 8px 24px var(--accent-soft), 0 0 0 4px var(--accent-soft);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-main);
+  border-color: var(--border);
+}
+
+.btn-ghost:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.tag-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.tag {
+  background-color: var(--accent-light);
+  color: var(--accent);
+  padding: 0.2rem 0.6rem;
+  font-size: 0.74rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  border-radius: 4px;
+}

@@ -1,0 +1,104 @@
+/* ==========================================================================
+   MEDIA QUERIES: every responsive / device / motion rule lives here.
+   This file is imported last, so it overrides the base rules.
+   ========================================================================== */
+
+/* ---------- Touch screens (no hover) ---------- */
+@media (hover: none) {
+  .cursor-glow {
+    display: none;
+  }
+
+  /* No hover to reveal it, so keep the "Expand" hint visible */
+  .expand-badge {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- Tablets and desktop ---------- */
+@media (min-width: 700px) {
+  .intro {
+    top: 50%;
+    left: max(2rem, 6vw);
+    transform: translateY(-50%);
+    max-width: min(460px, calc(40vw - 4rem));  }
+}
+
+@media (max-width: 899px) {
+  .site-foot {
+    display: none;
+  }
+}
+
+/* ---------- Phones ---------- */
+@media (max-width: 699px) {
+  /* Intro text sits above the helix */
+  .intro {
+    top: calc(var(--header-height) + 0.5rem);
+    left: 1.25rem;
+    right: 1.25rem;
+  }
+
+  .intro .subtitle {
+    display: none;
+  }
+
+  /* Modal becomes a bottom sheet */
+  .modal-zoom {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .modal-panel {
+    width: 100%;
+    max-height: 92vh;
+    max-height: 92dvh;
+    border-radius: 18px 18px 0 0;
+    border-bottom: 0;
+  }
+
+  .modal-bar {
+    padding-left: 1.1rem;
+  }
+
+  .modal-body {
+    padding: 1.25rem 1.1rem 2rem;
+  }
+
+  /* About page stacks */
+  .about-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  .about-photo {
+    max-width: 240px;
+    margin: 0 auto;
+  }
+
+   .quicknav {
+    display: none;
+  }
+
+  .navmenu {
+    display: block;
+  }
+}
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .caret,
+  .status-dot::after {
+    animation: none;
+  }
+
+  .modal-zoom,
+  .modal-backdrop,
+  .modal-body,
+  .intro,
+  .app.phase-out .view-wrap,
+  .app.phase-in .view-wrap {
+    animation-duration: 0.01s;
+  }
+}

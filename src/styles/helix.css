@@ -1,0 +1,203 @@
+/* ==========================================================================
+   HELIX: view wrapper, zoom transition, stage, nodes, clouds, previews
+   ========================================================================== */
+
+.view-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+}
+
+/* No clicking while the camera is flying between the two views */
+.app.phase-out .view-wrap,
+.app.phase-in .view-wrap {
+  pointer-events: none;
+}
+
+/* Node-coloured flash that covers the swap between the two views.
+   It reads as the surface of the node you flew into. */
+.flash {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    radial-gradient(circle at 38% 32%, rgba(255, 255, 255, 0.35), transparent 55%),
+    var(--red);
+}
+
+.app.phase-out .flash {
+  animation: flash-in 0.2s ease-in both;
+}
+
+.app.phase-in .flash {
+  animation: flash-out 0.2s ease-out both;
+}
+
+@keyframes flash-in {
+  0%, 72% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes flash-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+  touch-action: none; /* drag gestures spin the helix instead of scrolling */
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+  transition: filter 0.15s ease, transform 0.15s var(--ease);}
+
+.stage:active {
+  cursor: grabbing;
+}
+
+/* While the camera is flying, hide the labels and tap targets */
+.stage.diving .cloud,
+.stage.diving .node-hit {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* The helix runs past the screen edges: fade the ends out softly */
+.three-mount {
+  position: absolute;
+  inset: 0;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 64px, #000 calc(100% - 64px), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 64px, #000 calc(100% - 64px), transparent 100%);
+}
+
+.three-mount canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Invisible, finger-sized button on top of each 3D node */
+.node-hit {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  will-change: transform;
+  touch-action: none;
+  z-index: 2;
+}
+
+/* The small thought-cloud floating above a node */
+.cloud {
+  position: absolute;
+  left: 0;
+  top: 0;
+  max-width: 120px;
+  padding: 0.28rem 0.7rem;
+  background: var(--surface);
+  color: var(--text-main);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 1;
+  will-change: transform, opacity;
+  transition: opacity 0.1s ease;
+  box-shadow: var(--shadow-sm), 0 0 14px var(--accent-soft);
+}
+
+.cloud.tint-red {
+  border-color: var(--red);
+  box-shadow: var(--shadow-sm), 0 0 14px var(--red-soft);
+}
+
+.cloud-text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Project preview that pops up on hover (or on the facing node on touch) */
+.cloud-preview {
+  display: none;
+  width: 120px;
+  height: 68px;
+  object-fit: cover;
+  border-radius: 6px;
+  margin-bottom: 5px;
+  background: #02040a;
+}
+
+.cloud.expanded {
+  max-width: 136px;
+  padding: 5px 5px 0.26rem;
+  border-radius: 12px;
+  border-color: var(--accent);
+  box-shadow: var(--shadow-sm), 0 0 20px var(--accent-soft);
+}
+
+.cloud.expanded .cloud-preview {
+  display: block;
+}
+
+/* Two little circles trailing toward the node, like a thought bubble */
+.cloud::before,
+.cloud::after {
+  content: "";
+  position: absolute;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+}
+
+.cloud::before {
+  width: 8px;
+  height: 8px;
+  left: calc(50% - 4px);
+  bottom: -9px;
+}
+
+.cloud::after {
+  width: 5px;
+  height: 5px;
+  left: calc(50% + 1px);
+  bottom: -16px;
+}
+
+/* A preview that opens below its node: the bubble trail points up instead */
+.cloud.below::before {
+  bottom: auto;
+  top: -9px;
+}
+
+.cloud.below::after {
+  bottom: auto;
+  top: -16px;
+}
+
+/* Shown only if WebGL isn't available */
+.fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem;
+  padding-top: 40vh;
+}

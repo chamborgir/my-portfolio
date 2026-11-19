@@ -1,0 +1,428 @@
+/* ==========================================================================
+   MODALS: modal shell, modal content (about, skills, projects, contact),
+   full-screen lightbox, and the blur behind an open modal
+   ========================================================================== */
+
+/* Blur everything behind the modal */
+.modal-open .stage,
+.modal-open .intro,
+.modal-open .hint,
+.modal-open .site-foot, .modal-open .quicknav {
+  filter: blur(10px) brightness(0.55);
+}
+
+.modal-open .stage {
+  transform: scale(1.02);
+}
+
+/* ---------- Modal shell ---------- */
+.modal-root {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--backdrop);
+  cursor: zoom-out;
+  animation: fade-in 0.2s ease both;
+}
+
+/* The panel zooms out of the node that was tapped */
+.modal-zoom {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  pointer-events: none;
+  transform-origin: var(--ox) var(--oy);
+  animation: zoom-in 0.3s var(--ease) both;
+}
+
+.modal-root.closing .modal-backdrop {
+  animation: fade-out 0.2s ease both;
+}
+
+.modal-root.closing .modal-zoom {
+  animation: zoom-out 0.2s ease-in both;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes zoom-in {
+  from { opacity: 0; transform: scale(0.08); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes zoom-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.08); }
+}
+
+@keyframes body-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+.modal-panel {
+  pointer-events: auto;
+  width: min(920px, 100%);
+  max-height: min(86vh, 860px);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow-lg), 0 0 80px var(--accent-soft);
+  overflow: hidden;
+}
+
+.modal-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.8rem 1rem 0.8rem 1.4rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-kicker {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.modal-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.modal-counter {
+  min-width: 3.2rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.icon-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-main);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.icon-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.modal-body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1.5rem 1.4rem 1.75rem;
+  animation: body-in 0.25s var(--ease) both;
+}
+
+/* ---------- Shared modal content ---------- */
+.panel-title {
+  font-size: clamp(1.3rem, 3vw, 1.8rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  margin-bottom: 0.75rem;
+}
+
+.panel-text {
+  color: var(--text-muted);
+  font-size: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.panel-text b {
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.hero-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+/* ---------- Projects: landscape 16:9 GIF preview ---------- */
+.preview-media {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  object-position: center;
+  background: #02040a;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 1.4rem;
+}
+
+.preview-media.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-light);
+  border-style: dashed;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+/* Tap-to-expand GIF */
+.preview-btn {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: 10px;
+  margin-bottom: 1.4rem;
+  cursor: zoom-in;
+  transition: transform 0.3s var(--ease);
+}
+
+.preview-btn:hover {
+  transform: translateY(-2px);
+}
+
+.preview-btn .preview-media {
+  margin-bottom: 0;
+}
+
+/* Fixed dark colours so the badge reads on any theme */
+.expand-badge {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(5, 7, 13, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #e8edf7;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  pointer-events: none;
+}
+
+.preview-btn:hover .expand-badge,
+.preview-btn:focus-visible .expand-badge {
+  opacity: 1;
+  transform: none;
+}
+
+.project-links-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+}
+
+.project-links-wrapper a {
+  text-decoration: none;
+  color: var(--text-main);
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.project-links-wrapper a .arrow {
+  display: inline-block;
+  color: var(--accent);
+  transition: transform 0.2s var(--ease);
+}
+
+.project-links-wrapper a:hover {
+  color: var(--accent);
+}
+
+.project-links-wrapper a:hover .arrow {
+  transform: translate(2px, -2px);
+}
+
+/* Unavailable / frozen links */
+.project-links-wrapper .disabled {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 600;
+  opacity: 0.4;
+  text-decoration: line-through;
+  cursor: not-allowed;
+  user-select: none;
+}
+
+/* ---------- About ---------- */
+.about-grid {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 2rem;
+  align-items: center;
+}
+
+.about-photo {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  object-position: center top;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+/* ---------- Skills ---------- */
+.skills-body {
+  display: grid;
+  gap: 1rem;
+}
+
+.skill-group {
+  padding: 1.1rem 1.25rem;
+  background: var(--bg-color);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.skill-group h3 {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 0.8rem;
+}
+
+.skill-group .tag-container {
+  margin-bottom: 0;
+}
+
+/* ---------- Contact ---------- */
+.email-copy {
+  display: inline-block;
+  max-width: 100%;
+  background: var(--bg-color);
+  color: var(--accent);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.7rem 1.1rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.88rem;
+  cursor: pointer;
+  margin-bottom: 1.5rem;
+  overflow-wrap: anywhere;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.email-copy:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.contact-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+}
+
+.contact-links a {
+  text-decoration: none;
+  color: var(--text-main);
+  font-weight: 600;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.contact-links a:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ---------- Full-screen viewer (project GIFs and review screenshots) ---------- */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(2, 4, 10, 0.94);
+  cursor: zoom-out;
+  animation: fade-in 0.25s ease both;
+}
+
+.lightbox-img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.7), 0 0 60px var(--accent-soft);
+  background: #02040a;
+  touch-action: pinch-zoom;
+  animation: lightbox-in 0.22s var(--ease) both;
+}
+
+.lightbox-close {
+  position: absolute;
+  top: max(1rem, env(safe-area-inset-top));
+  right: 1rem;
+  z-index: 1;
+  background: var(--surface);
+}
+
+.lightbox-hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: max(0.75rem, env(safe-area-inset-bottom));
+  text-align: center;
+  font-size: 0.75rem;
+  color: #8590a8;
+  pointer-events: none;
+}
+
+@keyframes lightbox-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: none; }
+}

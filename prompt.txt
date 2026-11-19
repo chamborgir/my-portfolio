@@ -1,2 +1,6 @@
-lets split the app.jsx to multiple jsx files
-one for helix, for pages, for projects, for reviews and split the css to general style, helix style, modals, reviews, media query
+1. lets make the work node helix to be a some what linking 3d nucleotides of projects when it is selected and is rotating. 
+2. it still must show a floating preview of the projects when they are in front of the screen but make it a bit small
+3. make the works node modular so that when i add a new project it will automatically adjujst the subnodes
+4. add a faded quick navigation list of nodes in the right so that it will also be easy to navigate, for main helix and for projects node like table of contents, in desktop view, add the lists in the right of helix/nucleotides, in mobile portrait, add it as another button beside the theme change
+5. make the transition animations quick and fast, make the dark theme more dark bluish dim than black
+6. make everything texts into projects instead of works
