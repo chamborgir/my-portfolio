@@ -16,6 +16,8 @@
 
 /* Node-coloured flash that covers the swap between the two views.
    It reads as the surface of the node you flew into. */
+/* Soft veil in the page's own background colour (with a faint red hint),
+   so the swap between the two views dips through dim instead of flashing bright */
 .flash {
   position: fixed;
   inset: 0;
@@ -23,25 +25,25 @@
   pointer-events: none;
   opacity: 0;
   background:
-    radial-gradient(circle at 38% 32%, rgba(255, 255, 255, 0.35), transparent 55%),
-    var(--red);
+    radial-gradient(circle at 58% 50%, var(--red-soft), transparent 55%),
+    var(--bg-color);
 }
 
 .app.phase-out .flash {
-  animation: flash-in 0.2s ease-in both;
+  animation: veil-in 0.56s ease-in-out both;
 }
 
 .app.phase-in .flash {
-  animation: flash-out 0.2s ease-out both;
+  animation: veil-out 0.5s ease-out both;
 }
 
-@keyframes flash-in {
-  0%, 72% { opacity: 0; }
-  100% { opacity: 1; }
+@keyframes veil-in {
+  0%, 40% { opacity: 0; }
+  100% { opacity: 0.9; }
 }
 
-@keyframes flash-out {
-  from { opacity: 1; }
+@keyframes veil-out {
+  from { opacity: 0.9; }
   to { opacity: 0; }
 }
 
@@ -200,4 +202,26 @@
   gap: 0.75rem;
   padding: 2rem;
   padding-top: 40vh;
+}
+
+
+
+
+/* OPTIONAL */
+.app.phase-out .view-wrap {
+  animation: dive-blur 0.56s ease-in both;
+}
+
+.app.phase-in .view-wrap {
+  animation: arrive-blur 0.62s ease-out both;
+}
+
+@keyframes dive-blur {
+  from { filter: blur(0); }
+  to { filter: blur(6px); }
+}
+
+@keyframes arrive-blur {
+  from { filter: blur(6px); }
+  to { filter: blur(0); }
 }

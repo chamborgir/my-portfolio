@@ -327,7 +327,7 @@ export default function App() {
 
             <p className="hint">
                 {view === "projects"
-                    ? "Drag to spin · tap a node to open · Esc to go back"
+                    ? "Drag to spin · tap a node to open"
                     : "Drag to spin · tap a node to explore"}
             </p>
             <footer className="site-foot">

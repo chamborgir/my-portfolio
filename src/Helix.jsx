@@ -25,8 +25,8 @@ const TAIL = 0.9; // how far the backbone runs past the first / last nucleotide
 const NUC_REACH = 1.2; // distance from the backbone to the centre of a nucleotide's base
 
 // Zoom transition (App.jsx waits for these same durations)
-export const DIVE_MS = 300; // flying into the Projects node
-export const ARRIVE_MS = 300; // pulling back out inside it
+export const DIVE_MS = 560; // flying into the Projects node
+export const ARRIVE_MS = 620; // pulling back out inside it
 const STOP = 0.42; // how close the camera gets to the node (smaller = deeper zoom)
 const easeInOut = (t) =>
     t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
@@ -737,6 +737,8 @@ const Helix = forwardRef(function Helix(
             }
 
             /* ----- Camera flight (dive in / arrive / retreat) ----- */
+            /* ----- Camera flight (dive in / arrive / retreat) ----- */
+            let glowK = 1; // node glow fades out near the node, so nothing blows out to white
             if (a) {
                 a.t += dt / a.dur;
                 const t = Math.min(a.t, 1);
@@ -757,6 +759,7 @@ const Helix = forwardRef(function Helix(
                     const dist = dist0 * Math.pow(STOP / dist0, p);
                     const u = (dist0 - dist) / (dist0 - STOP);
                     camera.position.set(tmp.x * u, tmp.y * u, nz + dist);
+                    glowK = 1 - 0.95 * p;
                 }
                 if (a.type === "arrive" && a.t >= 1) {
                     camera.position.set(0, 0, CAM_Z);
@@ -764,6 +767,8 @@ const Helix = forwardRef(function Helix(
                     stage.classList.remove("diving");
                 }
             }
+            glowMat.opacity = 0.8 * glowK;
+            glowMatRed.opacity = 0.8 * glowK;
 
             // Project nodes to the screen; find the one facing you most
             let frontIdx = -1;
