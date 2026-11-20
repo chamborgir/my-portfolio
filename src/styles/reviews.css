@@ -1,11 +1,15 @@
 /* ==========================================================================
-   REVIEWS: review cards with tappable screenshots
+   REVIEWS: review cards with tappable screenshots.
+   The layout adapts to how many reviews and how many screenshots each has.
    ========================================================================== */
 
+/* One review fills the width; several flow into columns when there's room */
 .review-list {
   list-style: none;
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
   gap: 1.1rem;
+  align-items: start;
 }
 
 .review-card {
@@ -34,18 +38,21 @@
   color: var(--text-muted);
 }
 
+/* ---------- Screenshot grid: the columns follow the image count ---------- */
 .shot-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 0.75rem;
+  gap: 0.6rem;
 }
 
-.shot-grid.single {
-  grid-template-columns: minmax(0, 380px);
-}
+.shot-grid.c1 { grid-template-columns: minmax(0, 1fr); }
+.shot-grid.c2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.shot-grid.c3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.shot-grid.c4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.shot-grid.many { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
 
 /* Thumbnail shows the top of the screenshot; tapping opens it full size */
 .shot-btn {
+  position: relative;
   padding: 0;
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -54,6 +61,17 @@
   aspect-ratio: 4 / 3;
   cursor: zoom-in;
   transition: transform 0.25s var(--ease), border-color 0.2s ease;
+}
+
+/* Phone screenshots are tall, so give them taller thumbnails when there are 2-3 */
+.shot-grid.c2 .shot-btn,
+.shot-grid.c3 .shot-btn {
+  aspect-ratio: 3 / 4;
+}
+
+.shot-grid.c4 .shot-btn,
+.shot-grid.many .shot-btn {
+  aspect-ratio: 1 / 1;
 }
 
 .shot-btn:hover {
@@ -69,14 +87,16 @@
   object-position: top center;
 }
 
-.shot-placeholder {
+/* "+N" on the last thumbnail when there are more screenshots than fit */
+.shot-more {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 110px;
-  border: 1px dashed var(--border);
-  border-radius: 10px;
-  background: var(--accent-light);
-  color: var(--text-muted);
-  font-size: 0.85rem;
+  background: rgba(5, 8, 16, 0.62);
+  color: #e8edf7;
+  font-size: 1.2rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }

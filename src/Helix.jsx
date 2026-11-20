@@ -9,12 +9,12 @@ import React, {
 import * as THREE from "three";
 
 /* ==================================================================
-   HELIX GEOMETRY (world units)
+   CONSTANTS (world units)
    ================================================================== */
 
 const TAU = Math.PI * 2;
 const RADIUS = 1.9;
-const HEIGHT = 9; // height of the node area
+const HEIGHT = 9; // height of the main helix node area
 const PAD = 6; // extra strand above and below the main helix (no extra nodes)
 const FOV = 40;
 const CAM_Z = 14;
@@ -24,15 +24,24 @@ const FOLD_ZOOM = 1.12; // extra zoom on foldable-sized screens (1 = none)
 const TAIL = 0.9; // how far the backbone runs past the first / last nucleotide
 const NUC_REACH = 1.2; // distance from the backbone to the centre of a nucleotide's base
 
-// Zoom transition (App.jsx waits for these same durations)
-export const DIVE_MS = 560; // flying into the Projects node
-export const ARRIVE_MS = 620; // pulling back out inside it
-const STOP = 0.42; // how close the camera gets to the node (smaller = deeper zoom)
-const easeInOut = (t) =>
-    t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+// Morph between the main helix and the nucleotide chain (App.jsx waits for this)
+export const MORPH_MS = 1100;
 
 // Change this number to get a different random arrangement of the nodes
 const NODE_SEED = 7;
+
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const easeInOut = (t) =>
+    t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+
+// Stages of the morph, all driven by one eased value m (0 = main helix, 1 = chain)
+const phaseUnwind = (m) => easeInOut(clamp01(m / 0.55)); // strands untwist into a ladder
+const phaseCollapse = (m) => easeInOut(clamp01((m - 0.3) / 0.4)); // ladder pulls into the backbone
+const phaseTrim = (m) => easeInOut(clamp01((m - 0.45) / 0.45)); // backbone trims to the chain length
+const phaseSprout = (m) => clamp01((m - 0.55) / 0.45); // nucleotides grow out
+const phaseColor = (m) => easeInOut(clamp01((m - 0.25) / 0.5)); // blue -> red
 
 // Small seeded random generator: random-looking, but identical on every visit
 const mulberry32 = (a) => () => {
@@ -46,26 +55,27 @@ const mulberry32 = (a) => () => {
 /* Everything is derived from the number of nodes n, so adding a project
    automatically adjusts spacing, chain length and nucleotide size.
    double = main DNA helix (scattered nodes on two strands)
-   single = Projects chain (evenly spaced nucleotides on a straight backbone,
-            each one pointing in its own random direction) */
+   single = Projects chain (evenly spaced nucleotides on a straight backbone) */
 const makeGeom = (n, seed, single) => {
     const height = single ? Math.max(HEIGHT, n * 1.2) : HEIGHT;
     const full = height + PAD * 2;
     const turns = single ? 0 : Math.max(1.8, n * 0.34);
     const rand = mulberry32(seed + n * 101);
     const ts = [];
-    const angles = [];
-    let spin = single ? rand() * TAU : 0;
+    const base = [];
+    const flips = [];
     for (let k = 0; k < n; k++) {
         if (single) {
             ts.push((k + 0.5) / n);
-            spin += 1.5 + rand() * 1.6; // each nucleotide turns away from the previous one
-            angles.push(spin);
+            // depends only on k (not on n), so existing nucleotides keep their
+            // direction when a project is added
+            base.push(k * 2.4 + mulberry32(seed * 31 + k * 977)() * 1.4);
+            flips.push(0);
         } else {
             const t = (k + 0.5) / n + (rand() - 0.5) * (0.7 / n);
-            const flip = rand() < 0.5 ? 0 : Math.PI;
             ts.push(t);
-            angles.push(t * turns * TAU + flip);
+            base.push(t * turns * TAU);
+            flips.push(rand() < 0.5 ? 0 : Math.PI);
         }
     }
     return {
@@ -75,12 +85,12 @@ const makeGeom = (n, seed, single) => {
         turns,
         pairs: single ? 0 : Math.round((turns * 9 * full) / height),
         nucScale: Math.max(0.45, Math.min(1, height / n / 1.6)),
-        nodeAngle: (k) => angles[k],
+        nodeBase: (k) => base[k], // angle without the strand flip
+        nodeFlip: (k) => flips[k], // 0 = strand A, PI = strand B
+        nodeAngle: (k) => base[k] + flips[k],
         nodeY: (k) => (0.5 - ts[k]) * height,
     };
 };
-
-const clamp01 = (v) => Math.max(0, Math.min(1, v));
 
 const makeGlowTexture = () => {
     const c = document.createElement("canvas");
@@ -95,23 +105,22 @@ const makeGlowTexture = () => {
     return new THREE.CanvasTexture(c);
 };
 
+// Angle that turns a node at `angle` toward the viewer
+const faceAngle = (cur, angle) => {
+    const want = angle - Math.PI / 2;
+    const diff = ((((want - cur + Math.PI) % TAU) + TAU) % TAU) - Math.PI;
+    return cur + diff;
+};
+
 /* ==================================================================
-   THE HELIX (Three.js scene + DOM hit areas, clouds and previews)
-   mode "double" = the main DNA helix
-   mode "single" = the Projects view: connected 3D nucleotides on one backbone
-   arriveId      = start zoomed in on that node, then pull back out
+   THE HELIX
+   One Three.js scene holds BOTH the main double helix and the Projects
+   nucleotide chain. `view` ("main" | "projects") is the target; the scene
+   morphs between the two. DOM tap areas / clouds belong to the target view.
    ================================================================== */
 
 const Helix = forwardRef(function Helix(
-    {
-        items,
-        mode = "double",
-        onOpen,
-        onFrontChange,
-        activeId,
-        paused,
-        arriveId,
-    },
+    { mainItems, projectItems, view, onOpen, onFrontChange, activeId, paused },
     ref,
 ) {
     const stageRef = useRef(null);
@@ -122,13 +131,23 @@ const Helix = forwardRef(function Helix(
     const pausedRef = useRef(paused);
     const activeRef = useRef(activeId);
     const frontCbRef = useRef(onFrontChange);
+    const viewRef = useRef(view);
+    const relayoutRef = useRef(null);
     const focusTarget = useRef(null);
     const holdUntil = useRef(0); // pause the idle spin after navigating to a node
-    const itemsRef = useRef(items);
-    const animRef = useRef(null); // running zoom animation, if any
-    const geom = useMemo(
-        () => makeGeom(items.length, NODE_SEED, mode === "single"),
-        [items.length, mode],
+    const mainRef = useRef(mainItems);
+    const projRef = useRef(projectItems);
+    const morph = useRef({
+        v: view === "projects" ? 1 : 0,
+        target: view === "projects" ? 1 : 0,
+    });
+    const GM = useMemo(
+        () => makeGeom(mainItems.length, NODE_SEED, false),
+        [mainItems.length],
+    );
+    const GP = useMemo(
+        () => makeGeom(projectItems.length, NODE_SEED, true),
+        [projectItems.length],
     );
     const st = useRef({
         angle: 0.6,
@@ -148,27 +167,27 @@ const Helix = forwardRef(function Helix(
     pausedRef.current = paused;
     activeRef.current = activeId;
     frontCbRef.current = onFrontChange;
-    itemsRef.current = items;
+    viewRef.current = view;
+    mainRef.current = mainItems;
+    projRef.current = projectItems;
 
-    const animSeconds = (ms) =>
-        window.matchMedia("(prefers-reduced-motion: reduce)").matches
-            ? 0.01
-            : ms / 1000;
+    // DOM (tap areas, labels, previews) belongs to the view we are heading to
+    const items = view === "projects" ? projectItems : mainItems;
 
-    // Angle that turns node k toward the viewer
-    const faceAngle = (k) => {
-        const want = geom.nodeAngle(k) - Math.PI / 2;
-        const cur = st.current.angle;
-        const diff = ((((want - cur + Math.PI) % TAU) + TAU) % TAU) - Math.PI;
-        return cur + diff;
-    };
+    // Start / reverse the morph whenever the target view changes
+    useEffect(() => {
+        morph.current.target = view === "projects" ? 1 : 0;
+    }, [view]);
 
     useImperativeHandle(ref, () => ({
         // Rotates the helix so a given node faces the viewer
         focusItem(id) {
-            const k = itemsRef.current.findIndex((i) => i.id === id);
+            const proj = viewRef.current === "projects";
+            const list = proj ? projRef.current : mainRef.current;
+            const G = proj ? GP : GM;
+            const k = list.findIndex((i) => i.id === id);
             if (k < 0) return;
-            focusTarget.current = faceAngle(k);
+            focusTarget.current = faceAngle(st.current.angle, G.nodeAngle(k));
             st.current.vel = 0;
             holdUntil.current = performance.now() + 3000;
         },
@@ -176,31 +195,9 @@ const Helix = forwardRef(function Helix(
         nodeEl(id) {
             return hitRefs.current[id] || null;
         },
-        // Flies the camera into a node until its surface fills the screen
-        diveInto(id) {
-            const k = itemsRef.current.findIndex((i) => i.id === id);
-            if (k < 0) return;
-            focusTarget.current = faceAngle(k);
-            st.current.vel = 0;
-            hoverRef.current = id;
-            stageRef.current?.classList.add("diving");
-            animRef.current = {
-                type: "dive",
-                k,
-                t: 0,
-                dur: animSeconds(DIVE_MS),
-            };
-        },
-        // Pulls the camera far back so everything shrinks away into the distance
-        retreat() {
-            st.current.vel = 0;
-            stageRef.current?.classList.add("diving");
-            animRef.current = {
-                type: "retreat",
-                k: 0,
-                t: 0,
-                dur: animSeconds(DIVE_MS),
-            };
+        // Re-measure the layout (App calls this after the intro text changes)
+        relayout() {
+            relayoutRef.current?.(true);
         },
     }));
 
@@ -210,10 +207,13 @@ const Helix = forwardRef(function Helix(
         const reduce = window.matchMedia(
             "(prefers-reduced-motion: reduce)",
         ).matches;
-        const G = geom;
-        const list = items;
-        const N = list.length;
-        const single = mode === "single";
+
+        const mainL = mainItems;
+        const projL = projectItems;
+        const nM = mainL.length;
+        const nP = projL.length;
+        const NT = nM + nP;
+        const all = [...mainL, ...projL];
 
         let renderer;
         try {
@@ -283,91 +283,99 @@ const Helix = forwardRef(function Helix(
             depthWrite: false,
         });
 
-        /* ----- End caps: on a phone held upright, trim the main helix back to the
-                 node area so nothing runs up into the intro text ----- */
-        renderer.localClippingEnabled = true;
-        const clipTop = new THREE.Plane(
-            new THREE.Vector3(0, -1, 0),
-            G.height / 2,
-        ); // keeps y <= top
-        const clipBottom = new THREE.Plane(
-            new THREE.Vector3(0, 1, 0),
-            G.height / 2,
-        ); // keeps y >= bottom
-        const clipWorld = [new THREE.Plane(), new THREE.Plane()];
-        let capped = false;
-        const setCapped = (next) => {
-            if (next === capped) return;
-            capped = next;
-            [matA, matB, rungMat].forEach((m) => {
-                m.clippingPlanes = next ? clipWorld : null;
-                m.needsUpdate = true;
-            });
+        const geos = []; // everything to dispose on cleanup
+        const dummy = new THREE.Object3D();
+
+        /* ----- Strands and base pairs. They are rebuilt from maths every frame
+                 of the morph, so they can untwist, collapse and trim smoothly. ----- */
+        const chainExtent = nP > 0 ? GP.height / 2 + TAIL : 0;
+        const strandLen = Math.max(GM.full, chainExtent * 2 + 4);
+        const twistRate = (GM.turns * TAU) / GM.height;
+        const arcLen =
+            strandLen * Math.sqrt(1 + Math.pow(RADIUS * twistRate, 2));
+        const BEADS = Math.ceil(arcLen / 0.052); // dense enough to read as a smooth tube
+
+        const strandBeadGeo = new THREE.SphereGeometry(0.038, 6, 4);
+        const pairBeadGeo = new THREE.SphereGeometry(0.055, 8, 6);
+        geos.push(strandBeadGeo, pairBeadGeo);
+
+        const strandA = new THREE.InstancedMesh(strandBeadGeo, matA, BEADS);
+        const strandB = new THREE.InstancedMesh(strandBeadGeo, matB, BEADS);
+        const pairsN = GM.pairs;
+        const pairA = new THREE.InstancedMesh(pairBeadGeo, matA, pairsN);
+        const pairB = new THREE.InstancedMesh(pairBeadGeo, matB, pairsN);
+        const rungArr = new Float32Array(pairsN * 6);
+        const rungAttr = new THREE.BufferAttribute(rungArr, 3);
+        const rungGeo = new THREE.BufferGeometry();
+        rungGeo.setAttribute("position", rungAttr);
+        geos.push(rungGeo);
+        const rungs = new THREE.LineSegments(rungGeo, rungMat);
+        [strandA, strandB, pairA, pairB].forEach((im) => {
+            im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+            im.frustumCulled = false;
+        });
+        rungAttr.setUsage(THREE.DynamicDrawUsage);
+        rungs.frustumCulled = false;
+        group.add(strandA, strandB, pairA, pairB, rungs);
+
+        const setBead = (mesh, i, x, y, z, s) => {
+            dummy.position.set(x, y, z);
+            dummy.scale.setScalar(Math.max(s, 0.0001));
+            dummy.updateMatrix();
+            mesh.setMatrixAt(i, dummy.matrix);
         };
 
-        const geos = []; // everything to dispose on cleanup
+        let capped = false; // upright phone: trim the main helix to the node area
+        const updateStructure = (u, c, ext) => {
+            const tw = 1 - u; // 1 = fully twisted, 0 = flat ladder
+            const rEff = RADIUS * (1 - c); // 0 = collapsed onto the axis
+            const twist = GM.turns * TAU;
 
-        /* ----- MAIN HELIX: two strands + base pairs ----- */
-        if (!single) {
-            const strandGeo = (s, tubeR) => {
-                const segs = Math.max(
-                    Math.round((160 * G.full) / G.height),
-                    Math.round(G.turns * (G.full / G.height) * 40),
+            for (let i = 0; i < BEADS; i++) {
+                const y = (0.5 - (i + 0.5) / BEADS) * strandLen;
+                const th = (0.5 - y / GM.height) * twist * tw;
+                const edge = clamp01((ext - Math.abs(y)) / 0.5); // tapered ends
+                setBead(
+                    strandA,
+                    i,
+                    Math.cos(th) * rEff,
+                    y,
+                    Math.sin(th) * rEff,
+                    edge,
                 );
-                const pts = [];
-                for (let i = 0; i <= segs; i++) {
-                    const y = (0.5 - i / segs) * G.full;
-                    const th =
-                        (0.5 - y / G.height) * G.turns * TAU + s * Math.PI;
-                    pts.push(
-                        new THREE.Vector3(
-                            Math.cos(th) * RADIUS,
-                            y,
-                            Math.sin(th) * RADIUS,
-                        ),
-                    );
-                }
-                return new THREE.TubeGeometry(
-                    new THREE.CatmullRomCurve3(pts),
-                    segs,
-                    tubeR,
-                    6,
-                    false,
-                );
-            };
-            const geoA = strandGeo(0, 0.036);
-            const geoB = strandGeo(1, 0.036);
-            geos.push(geoA, geoB);
-            group.add(new THREE.Mesh(geoA, matA), new THREE.Mesh(geoB, matB));
-
-            const beadGeo = new THREE.SphereGeometry(0.055, 8, 8);
-            geos.push(beadGeo);
-            const baseA = new THREE.InstancedMesh(beadGeo, matA, G.pairs);
-            const baseB = new THREE.InstancedMesh(beadGeo, matB, G.pairs);
-            group.add(baseA, baseB);
-
-            const dummy = new THREE.Object3D();
-            const rungPts = [];
-            for (let j = 0; j < G.pairs; j++) {
-                const y = (0.5 - (j + 0.5) / G.pairs) * G.full;
-                const th = (0.5 - y / G.height) * G.turns * TAU;
-                const ax = Math.cos(th) * RADIUS;
-                const az = Math.sin(th) * RADIUS;
-                dummy.position.set(ax, y, az);
-                dummy.updateMatrix();
-                baseA.setMatrixAt(j, dummy.matrix);
-                dummy.position.set(-ax, y, -az);
-                dummy.updateMatrix();
-                baseB.setMatrixAt(j, dummy.matrix);
-                rungPts.push(
-                    new THREE.Vector3(ax, y, az),
-                    new THREE.Vector3(-ax, y, -az),
+                setBead(
+                    strandB,
+                    i,
+                    Math.cos(th + Math.PI) * rEff,
+                    y,
+                    Math.sin(th + Math.PI) * rEff,
+                    edge * (1 - c),
                 );
             }
-            const rungGeo = new THREE.BufferGeometry().setFromPoints(rungPts);
-            geos.push(rungGeo);
-            group.add(new THREE.LineSegments(rungGeo, rungMat));
-        }
+            strandA.instanceMatrix.needsUpdate = true;
+            strandB.instanceMatrix.needsUpdate = true;
+
+            for (let j = 0; j < pairsN; j++) {
+                const y = (0.5 - (j + 0.5) / pairsN) * GM.full;
+                const th = (0.5 - y / GM.height) * twist * tw;
+                const edge = clamp01((ext - Math.abs(y)) / 0.5);
+                const ax = Math.cos(th) * rEff * edge;
+                const az = Math.sin(th) * rEff * edge;
+                const s = (1 - c) * edge;
+                setBead(pairA, j, ax, y, az, s);
+                setBead(pairB, j, -ax, y, -az, s);
+                rungArr[j * 6] = ax;
+                rungArr[j * 6 + 1] = y;
+                rungArr[j * 6 + 2] = az;
+                rungArr[j * 6 + 3] = -ax;
+                rungArr[j * 6 + 4] = y;
+                rungArr[j * 6 + 5] = -az;
+            }
+            pairA.instanceMatrix.needsUpdate = true;
+            pairB.instanceMatrix.needsUpdate = true;
+            rungAttr.needsUpdate = true;
+            rungMat.opacity = 0.28 * (1 - c);
+        };
 
         /* ----- 3D nucleotide: phosphate + sugar + base (hexagon, or two fused for
                  a purine), joined by thin bonds. Local +X points away from the backbone. ----- */
@@ -428,81 +436,42 @@ const Helix = forwardRef(function Helix(
             return g;
         };
 
-        /* ----- Content nodes ----- */
-        // Where a node is tapped / previewed: on the helix strand, or at the base of a nucleotide
-        const nodeR = single ? NUC_REACH * G.nucScale : RADIUS;
-        const nodeLocal = [];
+        /* ----- Content nodes: main ones first, then the project nucleotides ----- */
+        const nodePos = all.map(() => new THREE.Vector3());
         const nodeObjs = []; // what gets scaled on hover
-        const nodeBase = [];
-        const nodeGain = [];
         const nodeGlows = [];
-        const nodeYs = [];
-        list.forEach((it, k) => {
-            const th = G.nodeAngle(k);
-            const y = G.nodeY(k);
-            nodeYs.push(y);
-            const pos = new THREE.Vector3(
-                Math.cos(th) * nodeR,
-                y,
-                Math.sin(th) * nodeR,
-            );
-            nodeLocal.push(pos);
+        const yMain = mainL.map((_, k) => GM.nodeY(k));
+        const yProj = projL.map((_, k) => GP.nodeY(k));
 
-            if (single) {
-                // sits ON the straight backbone and points off in its own direction
-                const nuc = buildNucleotide(k);
-                nuc.position.set(0, y, 0);
-                nuc.rotation.y = -th; // local +X now points along (cos th, 0, sin th)
-                nuc.scale.setScalar(G.nucScale);
-                group.add(nuc);
-                nodeObjs.push(nuc);
-                nodeBase.push(G.nucScale);
-                nodeGain.push(0.3);
+        all.forEach((it, i) => {
+            const isP = i >= nM;
+            let obj;
+            if (isP) {
+                obj = buildNucleotide(i - nM);
+                obj.position.set(0, yProj[i - nM], 0); // sits ON the straight backbone
             } else {
-                const red = it.tint === "red";
-                const mesh = new THREE.Mesh(
+                obj = new THREE.Mesh(
                     nodeGeo,
-                    red ? nodeMatRed : nodeMat,
+                    it.tint === "red" ? nodeMatRed : nodeMat,
                 );
-                mesh.position.copy(pos);
-                group.add(mesh);
-                nodeObjs.push(mesh);
-                nodeBase.push(1);
-                nodeGain.push(0.7);
             }
+            group.add(obj);
+            nodeObjs.push(obj);
 
-            const red = it.tint === "red";
-            const glow = new THREE.Sprite(red ? glowMatRed : glowMat);
-            glow.position.copy(pos);
+            const glow = new THREE.Sprite(
+                it.tint === "red" ? glowMatRed : glowMat,
+            );
             glow.scale.setScalar(0.8);
             group.add(glow);
             nodeGlows.push(glow);
         });
-        const minNodeY = Math.min(...nodeYs);
-        const maxNodeY = Math.max(...nodeYs);
-        const nodeSpan = Math.max(maxNodeY - minNodeY, 3);
-        const nodeMid = (minNodeY + maxNodeY) / 2;
 
-        /* ----- PROJECTS: the backbone that links the nucleotides one after another ----- */
-        if (single) {
-            const backGeo = new THREE.CylinderGeometry(0.05, 0.05, 1, 8);
-            const capGeo = new THREE.SphereGeometry(0.085, 10, 10);
-            geos.push(backGeo, capGeo);
-            const yTop = nodeYs[0] + TAIL;
-            const yBottom = nodeYs[N - 1] - TAIL;
-            const chainYs = [yTop, ...nodeYs, yBottom];
-            for (let i = 0; i < chainYs.length - 1; i++) {
-                const seg = new THREE.Mesh(backGeo, matA);
-                seg.position.set(0, (chainYs[i] + chainYs[i + 1]) / 2, 0);
-                seg.scale.y = chainYs[i] - chainYs[i + 1];
-                group.add(seg);
-            }
-            [yTop, yBottom].forEach((y) => {
-                const cap = new THREE.Mesh(capGeo, matA);
-                cap.position.set(0, y, 0);
-                group.add(cap);
-            });
-        }
+        const spanOf = (ys) => Math.max(Math.max(...ys) - Math.min(...ys), 3);
+        const midOf = (ys) => (Math.max(...ys) + Math.min(...ys)) / 2;
+        const mainSpan = spanOf(yMain);
+        const mainMid = midOf(yMain);
+        const projSpan = nP > 0 ? spanOf(yProj) : 3;
+        const projMid = nP > 0 ? midOf(yProj) : 0;
 
         /* ----- A little drifting dust ----- */
         const dustCount = 70;
@@ -518,40 +487,49 @@ const Helix = forwardRef(function Helix(
         const dust = new THREE.Points(dustGeo, dustMat);
         scene.add(dust);
 
-        /* ----- Theme colours (read from the stage, so the red Projects view turns red) ----- */
+        /* ----- Colours: blue (theme accent) blends to red as the morph runs ----- */
+        const blue = new THREE.Color();
+        const redC = new THREE.Color();
+        const mixC = new THREE.Color();
         const baseHue = [0, 0.06, -0.05, 0.11];
         const baseLight = [0, 0.08, -0.04, 0.04];
+        let mixNow = view === "projects" ? 1 : 0;
+        let mixApplied = -1;
+
+        const setMix = (mix) => {
+            mixApplied = mix;
+            mixC.copy(blue).lerp(redC, mix);
+            matA.color.copy(mixC);
+            nodeMat.color.copy(mixC);
+            rungMat.color.copy(mixC);
+            glowMat.color.copy(mixC);
+            dustMat.color.copy(mixC);
+            sugarMat.color.copy(mixC).offsetHSL(0, 0, 0.14);
+            baseMats.forEach((m, i) =>
+                m.color.copy(mixC).offsetHSL(baseHue[i], 0.05, baseLight[i]),
+            );
+        };
+
         const applyTheme = () => {
-            const cs = getComputedStyle(stage);
-            const accent = cs.getPropertyValue("--accent").trim();
-            const muted = cs.getPropertyValue("--text-muted").trim();
-            const main = cs.getPropertyValue("--text-main").trim();
-            const bg = cs.getPropertyValue("--bg-color").trim();
-            const red = cs.getPropertyValue("--red").trim();
+            const cs = getComputedStyle(document.documentElement);
+            blue.set(cs.getPropertyValue("--accent").trim());
+            redC.set(cs.getPropertyValue("--red").trim());
+            matB.color.set(cs.getPropertyValue("--text-muted").trim());
+            bondMat.color.set(cs.getPropertyValue("--text-muted").trim());
+            edgeMat.color.set(cs.getPropertyValue("--text-main").trim());
+            nodeMatRed.color.copy(redC);
+            glowMatRed.color.copy(redC);
+            scene.fog.color.set(cs.getPropertyValue("--bg-color").trim());
+            // Additive glow disappears on a light background, so use normal blending there
             const additive =
                 cs.getPropertyValue("--glow-additive").trim() !== "0";
-            matA.color.set(accent);
-            nodeMat.color.set(accent);
-            rungMat.color.set(accent);
-            glowMat.color.set(accent);
-            dustMat.color.set(accent);
-            matB.color.set(muted);
-            bondMat.color.set(muted);
-            edgeMat.color.set(main);
-            sugarMat.color.set(accent).offsetHSL(0, 0, 0.14);
-            baseMats.forEach((m, i) =>
-                m.color.set(accent).offsetHSL(baseHue[i], 0.05, baseLight[i]),
-            );
-            nodeMatRed.color.set(red);
-            glowMatRed.color.set(red);
-            scene.fog.color.set(bg);
-            // Additive glow disappears on a light background, so use normal blending there
             [glowMat, glowMatRed].forEach((m) => {
                 m.blending = additive
                     ? THREE.AdditiveBlending
                     : THREE.NormalBlending;
                 m.needsUpdate = true;
             });
+            setMix(mixNow);
         };
         applyTheme();
         const themeObserver = new MutationObserver(applyTheme);
@@ -560,15 +538,22 @@ const Helix = forwardRef(function Helix(
             attributeFilter: ["data-theme"],
         });
 
-        /* ----- Layout ----- */
+        /* ----- Layout: a framing for each view, blended during the morph ----- */
         let W = 0;
         let H = 0;
-        let fitScale = 1;
-        let topLimit = 76; // preview cards flip below their node if they'd go above this
-        const layout = () => {
+        let dirty = true; // strand maths need re-running
+        const introBottoms = {};
+        const L = {
+            main: { fit: 1, y: 0, topLimit: 76 },
+            proj: { fit: 1, y: 0, topLimit: 76 },
+            x: 0,
+        };
+        const cur = { s: 1, y: 0, init: false };
+
+        const layout = (force) => {
             const w = window.innerWidth;
             const h = window.innerHeight;
-            if (w === W && Math.abs(h - H) < 120) return;
+            if (!force && w === W && Math.abs(h - H) < 120) return;
             W = w;
             H = h;
             renderer.setSize(w, h, false);
@@ -583,68 +568,77 @@ const Helix = forwardRef(function Helix(
                 w >= 500 && w <= 1100 && ratio >= 0.72 && ratio <= 1.4;
             const portraitPhone = mobile && h > w;
 
-            // Phone held upright: trim the main helix (the Projects chain is already finite)
-            setCapped(portraitPhone && !single);
+            if (capped !== portraitPhone) {
+                capped = portraitPhone; // trim the main helix on an upright phone
+                dirty = true;
+            }
 
-            // Measure the real intro text so the helix never runs into it
+            // Measure the real intro text (per view) so the helix never runs into it
             const introEl = document.querySelector(".intro");
-            const introBottom = introEl
-                ? introEl.getBoundingClientRect().bottom
-                : 0;
-            const top = mobile
-                ? Math.max(foldable ? 150 : 170, introBottom + 36)
-                : foldable
-                  ? 88
-                  : 100;
-            const bottom = mobile ? 64 : foldable ? 64 : 80;
-            topLimit = mobile ? top - 8 : 76;
+            if (introEl) {
+                introBottoms[introEl.dataset.view || "main"] =
+                    introEl.getBoundingClientRect().bottom;
+            }
 
-            const regionH = Math.max(240, h - top - bottom);
             const widthPx = mobile
                 ? w * 0.62
                 : Math.min(w * (foldable ? 0.42 : 0.38), 600);
+            const frameFor = (v) => {
+                const isProj = v === "projects";
+                const top = mobile
+                    ? Math.max(
+                          foldable ? 150 : 170,
+                          (introBottoms[v] ?? (isProj ? 158 : 206)) + 36,
+                      )
+                    : foldable
+                      ? 88
+                      : 100;
+                const bottom = mobile ? 64 : foldable ? 64 : 80;
+                const regionH = Math.max(240, h - top - bottom);
 
-            // The Projects chain is finite: fit all of it, tails included.
-            // Main helix on an upright phone: fit the trimmed helix.
-            // Otherwise: fit the nodes and let the strand ends run off-screen.
-            let span;
-            let mid;
-            if (single) {
-                span = nodeSpan + 2 * TAIL + 0.6;
-                mid = nodeMid;
-            } else if (portraitPhone) {
-                span = G.height;
-                mid = 0;
-            } else {
-                span = nodeSpan;
-                mid = nodeMid;
-            }
-            const fitR = single ? 1.8 : RADIUS;
-            fitScale =
-                Math.min(
-                    1.6,
-                    (regionH * wpp) / span,
-                    (widthPx * wpp) / (2 * fitR),
-                ) * (foldable && !portraitPhone ? FOLD_ZOOM : 1);
+                let span;
+                let mid;
+                let fitR = RADIUS;
+                if (isProj) {
+                    // the chain is finite: fit all of it, tails included
+                    span = projSpan + 2 * TAIL + 0.6;
+                    mid = projMid;
+                    fitR = 1.8;
+                } else if (portraitPhone) {
+                    span = GM.height; // trimmed main helix
+                    mid = 0;
+                } else {
+                    span = mainSpan; // nodes fill the screen, strand ends run off
+                    mid = mainMid;
+                }
+                const fit =
+                    Math.min(
+                        1.6,
+                        (regionH * wpp) / span,
+                        (widthPx * wpp) / (2 * fitR),
+                    ) * (foldable && !portraitPhone ? FOLD_ZOOM : 1);
+                const cyPx = top + regionH / 2;
+                return {
+                    fit,
+                    y: (h / 2 - cyPx) * wpp - mid * fit,
+                    topLimit: mobile ? top - 8 : 76,
+                };
+            };
 
-            const cxPx = mobile ? w / 2 : w * 0.6;
-            const cyPx = top + regionH / 2;
-
-            group.scale.setScalar(fitScale);
-            group.position.set(
-                (cxPx - w / 2) * wpp,
-                (h / 2 - cyPx) * wpp - mid * fitScale,
-                0,
-            );
-            dust.scale.setScalar(fitScale);
-            dust.position.copy(group.position);
+            L.main = frameFor("main");
+            L.proj = nP > 0 ? frameFor("projects") : L.main;
+            L.x = ((mobile ? w / 2 : w * 0.6) - w / 2) * wpp;
         };
-        layout();
-        window.addEventListener("resize", layout);
+        layout(true);
+        relayoutRef.current = layout;
+        const onResize = () => layout(false);
+        window.addEventListener("resize", onResize);
 
         /* ----- Wheel and arrow keys spin the helix ----- */
+        const isSettled = () =>
+            Math.abs(morph.current.v - morph.current.target) < 0.0005;
         const onWheel = (e) => {
-            if (pausedRef.current || animRef.current) return;
+            if (pausedRef.current || !isSettled()) return;
             const s = st.current;
             s.vel = Math.max(
                 -0.2,
@@ -652,41 +646,25 @@ const Helix = forwardRef(function Helix(
             );
         };
         const onKey = (e) => {
-            if (pausedRef.current || animRef.current) return;
+            if (pausedRef.current || !isSettled()) return;
             if (e.key === "ArrowLeft") st.current.vel -= 0.04;
             if (e.key === "ArrowRight") st.current.vel += 0.04;
         };
         stage.addEventListener("wheel", onWheel, { passive: true });
         window.addEventListener("keydown", onKey);
 
-        /* ----- Per-node render state ----- */
+        /* ----- Render loop ----- */
         const tmp = new THREE.Vector3();
         const proj = new THREE.Vector3();
-        const hotAmt = list.map(() => 0);
-        const frontVals = list.map(() => 0);
-        const screenX = list.map(() => 0);
-        const screenY = list.map(() => 0);
-        const expandedState = list.map(() => false);
-        const belowState = list.map(() => false);
-        let lastFront = -1;
-
-        // Arriving: start right at a node's surface, then pull back out
-        if (arriveId) {
-            const k0 = list.findIndex((i) => i.id === arriveId);
-            if (k0 >= 0) {
-                st.current.angle = G.nodeAngle(k0) - Math.PI / 2;
-                animRef.current = {
-                    type: "arrive",
-                    k: k0,
-                    t: 0,
-                    dur: reduce ? 0.01 : ARRIVE_MS / 1000,
-                };
-                stage.classList.add("diving");
-                hotAmt[k0] = 1;
-            }
-        }
-
-        /* ----- Render loop ----- */
+        const hotAmt = all.map(() => 0);
+        const frontVals = all.map(() => 0);
+        const screenX = all.map(() => 0);
+        const screenY = all.map(() => 0);
+        const expandedState = all.map(() => false);
+        const belowState = all.map(() => false);
+        let lastFrontId = null;
+        let settledState = true;
+        let lastM = -1;
         let idle = 0.22;
         let spinDust = 0;
         let last = performance.now();
@@ -698,13 +676,40 @@ const Helix = forwardRef(function Helix(
             last = now;
             if (pausedRef.current) return;
 
-            const s = st.current;
-            const a = animRef.current;
+            /* --- morph progress --- */
+            const mo = morph.current;
+            const step = dt / (reduce ? 0.01 : MORPH_MS / 1000);
+            if (mo.v < mo.target) mo.v = Math.min(mo.target, mo.v + step);
+            else if (mo.v > mo.target) mo.v = Math.max(mo.target, mo.v - step);
+            const settled = isSettled();
+            if (settled !== settledState) {
+                settledState = settled;
+                stage.classList.toggle("diving", !settled); // hides labels + taps while morphing
+                if (!settled) lastFrontId = null;
+            }
+            const m = easeInOut(mo.v);
 
-            // Auto-spin slows while a node is hovered so it's easy to click, stops
-            // during the zoom animations and briefly after jumping to a node
+            const u = phaseUnwind(m);
+            const c = phaseCollapse(m);
+            const sb = phaseSprout(m);
+
+            if (m !== lastM || dirty) {
+                const extMain = capped
+                    ? GM.height / 2 + 0.25
+                    : strandLen / 2 + 1;
+                const extProj = nP > 0 ? chainExtent : extMain;
+                updateStructure(u, c, lerp(extMain, extProj, phaseTrim(m)));
+                lastM = m;
+                dirty = false;
+            }
+
+            mixNow = phaseColor(m);
+            if (Math.abs(mixNow - mixApplied) > 0.002) setMix(mixNow);
+
+            /* --- spin --- */
+            const s = st.current;
             const idleTarget =
-                reduce || a || now < holdUntil.current
+                reduce || !settled || now < holdUntil.current
                     ? 0
                     : hoverRef.current
                       ? 0.03
@@ -725,92 +730,124 @@ const Helix = forwardRef(function Helix(
                 if (Math.abs(diff) < 0.01) focusTarget.current = null;
             }
 
-            group.rotation.set(s.tilt, s.angle, 0.14);
+            /* --- framing: blend between the two layouts, then glide --- */
+            const tS = lerp(L.main.fit, L.proj.fit, m);
+            const tY = lerp(L.main.y, L.proj.y, m);
+            if (!cur.init) {
+                cur.s = tS;
+                cur.y = tY;
+                cur.init = true;
+            } else {
+                const k = Math.min(1, dt * 14);
+                cur.s += (tS - cur.s) * k;
+                cur.y += (tY - cur.y) * k;
+            }
+            group.scale.setScalar(cur.s);
+            group.position.set(L.x, cur.y, 0);
+            dust.scale.setScalar(cur.s);
+            dust.position.copy(group.position);
+
+            // a little extra twist while the structure reshapes
+            group.rotation.set(
+                s.tilt,
+                s.angle + Math.sin(Math.PI * m) * 0.7,
+                0.14,
+            );
             spinDust += dt * 0.02;
             dust.rotation.y = spinDust;
             group.updateMatrixWorld(true);
 
-            if (capped) {
-                // the cut planes follow the helix as it spins and leans
-                clipWorld[0].copy(clipTop).applyMatrix4(group.matrixWorld);
-                clipWorld[1].copy(clipBottom).applyMatrix4(group.matrixWorld);
-            }
+            /* --- node positions, sizes and presence --- */
+            const wMain = 1 - clamp01(c / 0.85); // main nodes melt into the backbone
+            for (let i = 0; i < NT; i++) {
+                const it = all[i];
+                const hot =
+                    hoverRef.current === it.id || activeRef.current === it.id;
+                hotAmt[i] += ((hot ? 1 : 0) - hotAmt[i]) * Math.min(1, dt * 10);
+                const hA = hotAmt[i];
+                let w;
 
-            /* ----- Camera flight (dive in / arrive / retreat) ----- */
-            /* ----- Camera flight (dive in / arrive / retreat) ----- */
-            let glowK = 1; // node glow fades out near the node, so nothing blows out to white
-            if (a) {
-                a.t += dt / a.dur;
-                const t = Math.min(a.t, 1);
-                if (a.type === "retreat") {
-                    camera.position.set(
-                        0,
-                        0,
-                        CAM_Z * Math.pow(60 / CAM_Z, easeInOut(t)),
+                if (i < nM) {
+                    const ang = GM.nodeBase(i) * (1 - u) + GM.nodeFlip(i);
+                    const r = RADIUS * (1 - c);
+                    nodePos[i].set(
+                        Math.cos(ang) * r,
+                        yMain[i],
+                        Math.sin(ang) * r,
+                    );
+                    nodeObjs[i].position.copy(nodePos[i]);
+                    w = wMain;
+                    nodeObjs[i].scale.setScalar(
+                        Math.max(w, 0.0001) * (1 + 0.7 * hA),
                     );
                 } else {
-                    // follow the node's world position so it ends up dead centre
-                    tmp.copy(nodeLocal[a.k]).applyMatrix4(group.matrixWorld);
-                    const nz = tmp.z;
-                    const dist0 = Math.max(CAM_Z - nz, STOP + 1);
-                    // p = 1 when the camera is at the node, 0 when it is at home
-                    const p =
-                        a.type === "dive" ? easeInOut(t) : Math.pow(1 - t, 3);
-                    const dist = dist0 * Math.pow(STOP / dist0, p);
-                    const u = (dist0 - dist) / (dist0 - STOP);
-                    camera.position.set(tmp.x * u, tmp.y * u, nz + dist);
-                    glowK = 1 - 0.95 * p;
+                    const k = i - nM;
+                    // each nucleotide sprouts in turn along the backbone
+                    const sp = easeOut(
+                        clamp01(sb * 1.7 - 0.7 * (nP > 1 ? k / (nP - 1) : 0)),
+                    );
+                    const ang = GP.nodeBase(k) + (1 - sp) * 1.4; // swings into place
+                    const r = NUC_REACH * GP.nucScale * sp;
+                    nodePos[i].set(
+                        Math.cos(ang) * r,
+                        yProj[k],
+                        Math.sin(ang) * r,
+                    );
+                    nodeObjs[i].rotation.y = -ang;
+                    w = sp;
+                    nodeObjs[i].scale.setScalar(
+                        Math.max(GP.nucScale * sp, 0.0001) * (1 + 0.3 * hA),
+                    );
                 }
-                if (a.type === "arrive" && a.t >= 1) {
-                    camera.position.set(0, 0, CAM_Z);
-                    animRef.current = null;
-                    stage.classList.remove("diving");
-                }
+                nodeObjs[i].visible = w > 0.01;
+                nodeGlows[i].visible = w > 0.01;
+                nodeGlows[i].position.copy(nodePos[i]);
+                nodeGlows[i].scale.setScalar(
+                    Math.max(w, 0.0001) * (0.8 + 0.9 * hA),
+                );
             }
-            glowMat.opacity = 0.8 * glowK;
-            glowMatRed.opacity = 0.8 * glowK;
 
-            // Project nodes to the screen; find the one facing you most
+            /* --- DOM: tap areas, labels and previews of the active view --- */
+            const toProjects = mo.target === 1;
+            const from = toProjects ? nM : 0;
+            const to = toProjects ? NT : nM;
+            const topLimit = (toProjects ? L.proj : L.main).topLimit;
+
             let frontIdx = -1;
             let frontMax = 0.85;
-            for (let k = 0; k < N; k++) {
-                tmp.copy(nodeLocal[k]).applyMatrix4(group.matrixWorld);
+            for (let i = from; i < to; i++) {
+                tmp.copy(nodePos[i]).applyMatrix4(group.matrixWorld);
+                const rRef = i < nM ? RADIUS : NUC_REACH * GP.nucScale;
                 const front =
                     THREE.MathUtils.clamp(
-                        (tmp.z - group.position.z) / (nodeR * fitScale),
+                        (tmp.z - group.position.z) / (rRef * cur.s),
                         -1,
                         1,
                     ) *
                         0.5 +
                     0.5;
-                frontVals[k] = front;
+                frontVals[i] = front;
                 if (front > frontMax) {
                     frontMax = front;
-                    frontIdx = k;
+                    frontIdx = i;
                 }
                 proj.copy(tmp).project(camera);
-                screenX[k] = (proj.x * 0.5 + 0.5) * W;
-                screenY[k] = (-proj.y * 0.5 + 0.5) * H;
+                screenX[i] = (proj.x * 0.5 + 0.5) * W;
+                screenY[i] = (-proj.y * 0.5 + 0.5) * H;
             }
 
             // Tell the quick-navigation list which node is in front
-            if (frontIdx >= 0 && frontIdx !== lastFront) {
-                lastFront = frontIdx;
-                frontCbRef.current?.(list[frontIdx].id);
+            if (settled && frontIdx >= 0 && all[frontIdx].id !== lastFrontId) {
+                lastFrontId = all[frontIdx].id;
+                frontCbRef.current?.(lastFrontId);
             }
 
-            for (let k = 0; k < N; k++) {
-                const it = list[k];
-                const sx = screenX[k];
-                const sy = screenY[k];
-
+            for (let i = from; i < to; i++) {
+                const it = all[i];
+                const sx = screenX[i];
+                const sy = screenY[i];
                 const hot =
                     hoverRef.current === it.id || activeRef.current === it.id;
-                hotAmt[k] += ((hot ? 1 : 0) - hotAmt[k]) * Math.min(1, dt * 10);
-                nodeObjs[k].scale.setScalar(
-                    nodeBase[k] * (1 + nodeGain[k] * hotAmt[k]),
-                );
-                nodeGlows[k].scale.setScalar(0.8 + 0.9 * hotAmt[k]);
 
                 const hit = hitRefs.current[it.id];
                 if (hit) {
@@ -823,28 +860,28 @@ const Helix = forwardRef(function Helix(
                     // hovering (or keyboard-focusing) any project shows its preview too.
                     const expanded =
                         !!it.image &&
-                        (hot || (k === frontIdx && !hoverRef.current));
-                    if (expandedState[k] !== expanded) {
-                        expandedState[k] = expanded;
+                        (hot || (i === frontIdx && !hoverRef.current));
+                    if (expandedState[i] !== expanded) {
+                        expandedState[i] = expanded;
                         cloud.classList.toggle("expanded", expanded);
                         cloud.style.zIndex = expanded ? 3 : 1;
                     }
                     // A preview that would poke into the intro text opens below its node
                     const below = expanded && sy - 24 - 104 < topLimit;
-                    if (belowState[k] !== below) {
-                        belowState[k] = below;
+                    if (belowState[i] !== below) {
+                        belowState[i] = below;
                         cloud.classList.toggle("below", below);
                     }
                     const vis =
                         hot || expanded
                             ? 1
-                            : clamp01((frontVals[k] - 0.55) / 0.35);
+                            : clamp01((frontVals[i] - 0.55) / 0.35);
                     const half = expanded ? 72 : 60;
                     const cx = Math.max(half, Math.min(W - half, sx));
                     cloud.style.opacity = vis;
                     cloud.style.transform = below
                         ? `translate3d(${cx}px,${sy + 26}px,0) translate(-50%,0)`
-                        : `translate3d(${cx}px,${Math.max(sy - 24 - hotAmt[k] * 4, 98)}px,0) translate(-50%,-100%)`;
+                        : `translate3d(${cx}px,${Math.max(sy - 24 - hotAmt[i] * 4, 98)}px,0) translate(-50%,-100%)`;
                 }
             }
 
@@ -854,7 +891,8 @@ const Helix = forwardRef(function Helix(
 
         return () => {
             cancelAnimationFrame(raf);
-            window.removeEventListener("resize", layout);
+            relayoutRef.current = null;
+            window.removeEventListener("resize", onResize);
             window.removeEventListener("keydown", onKey);
             stage.removeEventListener("wheel", onWheel);
             themeObserver.disconnect();
@@ -873,6 +911,7 @@ const Helix = forwardRef(function Helix(
                 glowMatRed,
                 dustMat,
             ].forEach((m) => m.dispose());
+            [strandA, strandB, pairA, pairB].forEach((im) => im.dispose());
             glowTex.dispose();
             renderer.dispose();
             renderer.forceContextLoss();

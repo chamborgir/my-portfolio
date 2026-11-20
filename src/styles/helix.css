@@ -1,5 +1,5 @@
 /* ==========================================================================
-   HELIX: view wrapper, zoom transition, stage, nodes, clouds, previews
+   HELIX: view wrapper, stage, nodes, clouds, previews
    ========================================================================== */
 
 .view-wrap {
@@ -8,43 +8,10 @@
   z-index: 1;
 }
 
-/* No clicking while the camera is flying between the two views */
+/* No clicking while the helix is morphing between its two shapes */
 .app.phase-out .view-wrap,
 .app.phase-in .view-wrap {
   pointer-events: none;
-}
-
-/* Node-coloured flash that covers the swap between the two views.
-   It reads as the surface of the node you flew into. */
-/* Soft veil in the page's own background colour (with a faint red hint),
-   so the swap between the two views dips through dim instead of flashing bright */
-.flash {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  pointer-events: none;
-  opacity: 0;
-  background:
-    radial-gradient(circle at 58% 50%, var(--red-soft), transparent 55%),
-    var(--bg-color);
-}
-
-.app.phase-out .flash {
-  animation: veil-in 0.56s ease-in-out both;
-}
-
-.app.phase-in .flash {
-  animation: veil-out 0.5s ease-out both;
-}
-
-@keyframes veil-in {
-  0%, 40% { opacity: 0; }
-  100% { opacity: 0.9; }
-}
-
-@keyframes veil-out {
-  from { opacity: 0.9; }
-  to { opacity: 0; }
 }
 
 .stage {
@@ -54,13 +21,14 @@
   user-select: none;
   -webkit-user-select: none;
   cursor: grab;
-  transition: filter 0.15s ease, transform 0.15s var(--ease);}
+  transition: filter 0.3s ease, transform 0.3s var(--ease);
+}
 
 .stage:active {
   cursor: grabbing;
 }
 
-/* While the camera is flying, hide the labels and tap targets */
+/* While the helix is changing shape, hide the labels and tap targets */
 .stage.diving .cloud,
 .stage.diving .node-hit {
   opacity: 0 !important;
@@ -118,7 +86,7 @@
   opacity: 0;
   z-index: 1;
   will-change: transform, opacity;
-  transition: opacity 0.1s ease;
+  transition: opacity 0.2s ease;
   box-shadow: var(--shadow-sm), 0 0 14px var(--accent-soft);
 }
 
@@ -133,7 +101,8 @@
   text-overflow: ellipsis;
 }
 
-/* Project preview that pops up on hover (or on the facing node on touch) */
+/* Small floating project preview: shown for the project in front of the
+   screen, and for any project you hover */
 .cloud-preview {
   display: none;
   width: 120px;
@@ -202,26 +171,4 @@
   gap: 0.75rem;
   padding: 2rem;
   padding-top: 40vh;
-}
-
-
-
-
-/* OPTIONAL */
-.app.phase-out .view-wrap {
-  animation: dive-blur 0.56s ease-in both;
-}
-
-.app.phase-in .view-wrap {
-  animation: arrive-blur 0.62s ease-out both;
-}
-
-@keyframes dive-blur {
-  from { filter: blur(0); }
-  to { filter: blur(6px); }
-}
-
-@keyframes arrive-blur {
-  from { filter: blur(6px); }
-  to { filter: blur(0); }
 }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import "./index.css";
-import Helix, { ARRIVE_MS, DIVE_MS } from "./Helix";
+import Helix, { MORPH_MS } from "./Helix";
 import Modal from "./Modal";
 import { QuickNav, NavMenu } from "./QuickNav";
 import { MAIN_ITEMS } from "./Pages";
@@ -110,9 +110,11 @@ export default function App() {
     const [theme, setTheme] = useState(() =>
         lsGet("theme") === "light" ? "light" : "dark",
     );
-    const [view, setView] = useState("main"); // "main" (double helix) | "projects" (nucleotide chain)
+    // `view` is where the helix is morphing TO; `uiView` is what the text, colours
+    // and lists show. The UI switches halfway through the morph.
+    const [view, setView] = useState("main"); // "main" | "projects"
+    const [uiView, setUiView] = useState("main");
     const [phase, setPhase] = useState("idle"); // idle | out | in
-    const [arriveId, setArriveId] = useState(null); // node the next view zooms out from
     const [frontId, setFrontId] = useState(null); // node currently facing you
     const [openId, setOpenId] = useState(null);
     const [origin, setOrigin] = useState({ x: 0, y: 0 });
@@ -129,37 +131,34 @@ export default function App() {
     frontIdRef.current = frontId;
 
     const typed = useTypewriter(ROLES);
-    const items = view === "projects" ? PROJECT_ITEMS : MAIN_ITEMS;
+    const items = uiView === "projects" ? PROJECT_ITEMS : MAIN_ITEMS;
 
     useEffect(() => {
         document.documentElement.setAttribute("data-theme", theme);
         lsSet("theme", theme);
     }, [theme]);
 
-    // Going to Projects: dive into the Projects node, then pull back out inside it.
-    // Going back: shrink away, then pull back out of the Projects node on the main helix.
+    // The intro text changes with the view: let the helix re-measure its framing
+    useEffect(() => {
+        helixRef.current?.relayout();
+    }, [uiView]);
+
+    // Morph between the main helix and the nucleotide chain (the same call
+    // plays it forwards or in reverse)
     const switchView = useCallback((next) => {
         if (busyRef.current) return;
         busyRef.current = true;
         setPhase("out");
-        if (next === "projects") helixRef.current?.diveInto("projects");
-        else helixRef.current?.retreat();
-
+        setView(next); // the 3D scene starts morphing right away
         setTimeout(() => {
-            setArriveId(
-                next === "projects"
-                    ? (PROJECT_ITEMS[0]?.id ?? null)
-                    : "projects",
-            );
+            setUiView(next); // halfway: swap the text, colours and lists
             setFrontId(null);
-            setView(next);
             setPhase("in");
-            setTimeout(() => {
-                setPhase("idle");
-                setArriveId(null);
-                busyRef.current = false;
-            }, ARRIVE_MS + 100);
-        }, DIVE_MS);
+        }, MORPH_MS * 0.5);
+        setTimeout(() => {
+            setPhase("idle");
+            busyRef.current = false;
+        }, MORPH_MS + 80);
     }, []);
 
     const openItem = useCallback(
@@ -248,12 +247,12 @@ export default function App() {
         items,
         activeId: frontId,
         onSelect: goTo,
-        title: view === "projects" ? "Projects" : "Contents",
+        title: uiView === "projects" ? "Projects" : "Contents",
     };
 
     return (
         <div
-            className={`app view-${view} phase-${phase} ${openId ? "modal-open" : ""}`}
+            className={`app view-${uiView} phase-${phase} ${openId ? "modal-open" : ""}`}
             style={{ "--ox": `${origin.x}px`, "--oy": `${origin.y}px` }}
         >
             <CursorGlow />
@@ -266,8 +265,8 @@ export default function App() {
                 nav={nav}
             />
 
-            {view === "projects" ? (
-                <div className="intro" key="projects">
+            {uiView === "projects" ? (
+                <div className="intro" key="projects" data-view="projects">
                     <span className="hero-eyebrow">
                         <span className="status-dot" /> Selected projects
                     </span>
@@ -282,12 +281,12 @@ export default function App() {
                         </button>
                     </div>
                     <p className="subtitle">
-                        Hover or turn one to the front to peek, tap a project
-                        for a detailed view.
+                        Every project is a nucleotide in one connected chain.
+                        Hover or turn one to the front to peek, tap it to open.
                     </p>
                 </div>
             ) : (
-                <div className="intro" key="main">
+                <div className="intro" key="main" data-view="main">
                     <span className="hero-eyebrow">
                         <span className="status-dot" /> Available for work
                     </span>
@@ -307,11 +306,10 @@ export default function App() {
 
             <div className="view-wrap">
                 <Helix
-                    key={view}
                     ref={helixRef}
-                    items={items}
-                    mode={view === "projects" ? "single" : "double"}
-                    arriveId={arriveId}
+                    mainItems={MAIN_ITEMS}
+                    projectItems={PROJECT_ITEMS}
+                    view={view}
                     onOpen={openItem}
                     onFrontChange={setFrontId}
                     activeId={openId}
@@ -320,13 +318,10 @@ export default function App() {
             </div>
 
             {/* Desktop: faded table of contents to the right of the helix */}
-            <QuickNav key={`nav-${view}`} {...nav} />
-
-            {/* Node-coloured flash that hides the swap between the two views */}
-            <div className="flash" aria-hidden="true" />
+            <QuickNav key={`nav-${uiView}`} {...nav} />
 
             <p className="hint">
-                {view === "projects"
+                {uiView === "projects"
                     ? "Drag to spin · tap a node to open"
                     : "Drag to spin · tap a node to explore"}
             </p>

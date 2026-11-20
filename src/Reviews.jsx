@@ -2,48 +2,73 @@ import React, { useState, useCallback } from "react";
 import Lightbox from "./Lightbox";
 
 /* ------------------------------------------------------------------
-   REVIEW SCREENSHOTS: step 1 of 2
-   Put your screenshot files in  src/assets/reviews/  and import each
-   one here. Uncomment the lines below once the files exist.
+   HOW TO ADD A REVIEW: just drop screenshots into  src/assets/reviews/
+   There is nothing to edit in this file.
+
+   One folder per person (folder name = reviewee name):
+       src/assets/reviews/Juan Dela Cruz/1.png
+       src/assets/reviews/Juan Dela Cruz/2.png
+   Or loose files named after the person (a trailing number groups them):
+       src/assets/reviews/Maria Santos 1.png
+       src/assets/reviews/Maria Santos 2.png
+   Optional source label: end the name with (Something), e.g.
+       src/assets/reviews/Juan Dela Cruz (Messenger)/1.png
+   Optional order: start the name with a number, e.g. "01 Juan Dela Cruz"
+   (the number is hidden on the site).
    ------------------------------------------------------------------ */
-// import review1Img from "./assets/reviews/review1.png";
-// import review2Img from "./assets/reviews/review2.png";
-// import review3Img from "./assets/reviews/review3.png"; // <- new one? add a line like this
 
-/* ------------------------------------------------------------------
-   REVIEW SCREENSHOTS: step 2 of 2
-   One entry per person. To add a NEW review, copy a block below,
-   paste it at the end of the list (before the closing ];), then fill
-   in the name and the screenshot(s).
+const files = import.meta.glob(
+    "./assets/reviews/**/*.{png,jpg,jpeg,webp,gif,avif,PNG,JPG,JPEG,WEBP}",
+    { eager: true, import: "default" },
+);
 
-     name    -> the reviewee's name
-     source  -> optional small label, e.g. "Messenger" or "Client project"
-     images  -> one or more screenshots, e.g. [review1Img] or [review1Img, review2Img]
-                (leave [] and a "Screenshot coming soon" box shows)
-   ------------------------------------------------------------------ */
-export const REVIEWS = [
-    // Review 1
-    {
-        name: "Reviewee name",
-        source: "",
-        images: [], // e.g. [review1Img]
-    },
-    // Review 2
-    {
-        name: "Reviewee name",
-        source: "",
-        images: [], // e.g. [review2Img]
-    },
-];
+const natural = (a, b) =>
+    a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
 
-// Review screenshots, one card per person
+const buildReviews = () => {
+    const groups = new Map();
+
+    Object.entries(files).forEach(([path, url]) => {
+        const parts = path.replace("./assets/reviews/", "").split("/");
+        const file = parts[parts.length - 1];
+        const stem = file.replace(/\.[^.]+$/, "");
+        // In a folder: the folder is the person.
+        // Loose file: the file name is, minus a trailing number ("Maria 2" -> "Maria").
+        const key =
+            parts.length > 1
+                ? parts[0]
+                : stem.replace(/[\s._-]*\d+$/, "").trim() || stem;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push({ file, url });
+    });
+
+    return [...groups.entries()]
+        .sort(([a], [b]) => natural(a, b))
+        .map(([key, shots]) => {
+            const clean = key.replace(/^\d+[\s._-]+/, ""); // hide the ordering number
+            const m = clean.match(/^(.*?)\s*\(([^)]+)\)\s*$/); // "Name (Source)"
+            return {
+                name: (m ? m[1] : clean).trim(),
+                source: m ? m[2].trim() : "",
+                images: shots
+                    .sort((a, b) => natural(a.file, b.file))
+                    .map((s) => s.url),
+            };
+        });
+};
+
+const REVIEWS = buildReviews();
+
+const MAX_THUMBS = 6; // more than this: the last thumbnail shows "+N"
+
+// Review screenshots, one card per person. The grid adapts to the number of images.
 export const ReviewsBody = () => {
     const [zoom, setZoom] = useState(null);
     const closeZoom = useCallback(() => setZoom(null), []);
 
     return (
         <div>
-            {/* <h2 className="panel-title">Reviews</h2> */}
+            <h2 className="panel-title">Reviews</h2>
             <p className="panel-text">
                 Kind words from people I've worked with. Tap a screenshot to
                 view it full size.
@@ -54,53 +79,64 @@ export const ReviewsBody = () => {
             )}
 
             <ul className="review-list">
-                {REVIEWS.map((r, i) => (
-                    <li key={i} className="review-card">
-                        <div className="review-top">
-                            <span className="review-name">{r.name}</span>
-                            {r.source && (
-                                <span className="review-source">
-                                    {r.source}
-                                </span>
-                            )}
-                        </div>
+                {REVIEWS.map((r) => {
+                    const shown = r.images.slice(0, MAX_THUMBS);
+                    const extra = r.images.length - shown.length;
+                    const cls = shown.length >= 5 ? "many" : `c${shown.length}`;
+                    return (
+                        <li key={r.name + r.source} className="review-card">
+                            <div className="review-top">
+                                <span className="review-name">{r.name}</span>
+                                {r.source && (
+                                    <span className="review-source">
+                                        {r.source}
+                                    </span>
+                                )}
+                            </div>
 
-                        {r.images && r.images.length > 0 ? (
-                            <div
-                                className={`shot-grid ${r.images.length === 1 ? "single" : ""}`}
-                            >
-                                {r.images.map((src, j) => (
+                            <div className={`shot-grid ${cls}`}>
+                                {shown.map((src, j) => (
                                     <button
-                                        key={j}
+                                        key={src}
                                         type="button"
                                         className="shot-btn"
                                         onClick={() =>
                                             setZoom({
-                                                src,
+                                                images: r.images,
+                                                index: j,
                                                 alt: `Review from ${r.name}`,
                                             })
                                         }
-                                        aria-label={`View full-size review from ${r.name}`}
+                                        aria-label={`View full-size review ${j + 1} of ${r.images.length} from ${r.name}`}
                                     >
                                         <img
                                             src={src}
                                             alt={`Review from ${r.name}`}
                                             loading="lazy"
+                                            decoding="async"
                                         />
+                                        {extra > 0 &&
+                                            j === shown.length - 1 && (
+                                                <span className="shot-more">
+                                                    +{extra}
+                                                </span>
+                                            )}
                                     </button>
                                 ))}
                             </div>
-                        ) : (
-                            <div className="shot-placeholder">
-                                Screenshot coming soon
-                            </div>
-                        )}
-                    </li>
-                ))}
+                        </li>
+                    );
+                })}
             </ul>
 
             {zoom && (
-                <Lightbox src={zoom.src} alt={zoom.alt} onClose={closeZoom} />
+                <Lightbox
+                    src={zoom.images[zoom.index]}
+                    images={zoom.images}
+                    startIndex={zoom.index}
+                    alt={zoom.alt}
+                    onClose={closeZoom}
+                />
             )}
         </div>
     );
