@@ -89,7 +89,8 @@
 /* ---------- Reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   .caret,
-  .status-dot::after {
+  .status-dot::after,
+  .react-spin {
     animation: none;
   }
 

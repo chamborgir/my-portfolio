@@ -101,6 +101,45 @@ const Header = ({ theme, toggleTheme, onHome, nav }) => (
         </div>
     </header>
 );
+// React's atom mark, slowly spinning like the original
+const ReactMark = () => (
+    <svg
+        className="tech-mark react-spin"
+        viewBox="-11.5 -10.2 23 20.4"
+        width="16"
+        height="16"
+        aria-hidden="true"
+    >
+        <circle r="2.05" fill="currentColor" />
+        <g stroke="currentColor" strokeWidth="1" fill="none">
+            <ellipse rx="11" ry="4.2" />
+            <ellipse rx="11" ry="4.2" transform="rotate(60)" />
+            <ellipse rx="11" ry="4.2" transform="rotate(120)" />
+        </g>
+    </svg>
+);
+
+// Three.js-style mark: a tilted triangle built from smaller triangles.
+// Change TILT to rotate it more or less.
+const TILT = -15;
+const ThreeMark = () => (
+    <svg
+        className="tech-mark"
+        viewBox="0 0 24 24"
+        width="16"
+        height="16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+        aria-hidden="true"
+    >
+        <g transform={`rotate(${TILT} 12 13)`}>
+            <path d="M12 3 L21.5 20 L2.5 20 Z" />
+            <path d="M16.75 11.5 L7.25 11.5 L12 20 Z" />
+        </g>
+    </svg>
+);
 
 /* ------------------------------------------------------------------
    App
@@ -326,7 +365,14 @@ export default function App() {
                     : "Drag to spin · tap a node to explore"}
             </p>
             <footer className="site-foot">
-                © {new Date().getFullYear()} — Built with React + Three.js
+                <span>© {new Date().getFullYear()} — Built with</span>
+                <span className="tech">
+                    <ReactMark /> React
+                </span>
+                <span>+</span>
+                <span className="tech">
+                    <ThreeMark /> Three.js
+                </span>
             </footer>
 
             {openId && (

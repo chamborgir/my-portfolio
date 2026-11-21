@@ -344,10 +344,35 @@ button {
   left: max(2rem, 6vw);
   bottom: 1.25rem;
   z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   font-size: 0.75rem;
   color: var(--text-muted);
   pointer-events: none;
   transition: filter 0.4s ease;
+}
+
+.tech {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--text-main);
+}
+
+.tech-mark {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+/* The React mark spins slowly */
+.react-spin {
+  animation: react-spin 9s linear infinite;
+  transform-origin: center;
+}
+
+@keyframes react-spin {
+  to { transform: rotate(360deg); }
 }
 
 /* ---------- Buttons & tags (shared) ---------- */
