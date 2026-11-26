@@ -182,7 +182,7 @@ export default function App() {
         helixRef.current?.relayout();
     }, [uiView]);
 
-    // Morph between the main helix and the nucleotide chain (the same call
+    // Morph between main and project nodes on the shared DNA helix (the same call
     // plays it forwards or in reverse)
     const switchView = useCallback((next) => {
         if (busyRef.current) return;
@@ -204,6 +204,10 @@ export default function App() {
         (id, el) => {
             const it = ALL_ITEMS.find((i) => i.id === id);
             if (!it) return;
+            if (it.kind === "home") {
+                switchView("main");
+                return;
+            }
             if (it.kind === "hub") {
                 switchView("projects");
                 return;
@@ -226,6 +230,10 @@ export default function App() {
     const goTo = useCallback(
         (id) => {
             if (busyRef.current || openIdRef.current) return;
+            if (id === "home") {
+                openItem(id, helixRef.current?.nodeEl(id));
+                return;
+            }
             if (frontIdRef.current === id) {
                 openItem(id, helixRef.current?.nodeEl(id));
             } else {
@@ -311,17 +319,17 @@ export default function App() {
                     </span>
                     <div className="intro-row">
                         <h1>Things I've built.</h1>
-                        <button
+                        {/* <button
                             className="back-btn"
                             onClick={() => switchView("main")}
                             aria-label="Back to main helix"
                         >
                             Back
-                        </button>
+                        </button> */}
                     </div>
                     <p className="subtitle">
-                        Every project is a nucleotide in one connected chain.
-                        Hover or turn one to the front to peek, tap it to open.
+                        Same DNA double helix, with one glowing node for each
+                        project. Hover to peek, tap a node to open.
                     </p>
                 </div>
             ) : (

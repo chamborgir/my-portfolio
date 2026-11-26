@@ -13,7 +13,11 @@ export function QuickNav({ items, activeId, onSelect, title }) {
                     <li key={it.id}>
                         <button
                             type="button"
-                            className={`qn-item ${activeId === it.id ? "on" : ""}`}
+                            className={`qn-item ${
+                                it.kind === "home" ? "qn-home" : ""
+                            } ${
+                                it.kind === "hub" ? "qn-projects" : ""
+                            } ${activeId === it.id ? "on" : ""}`}
                             onClick={() => onSelect(it.id)}
                             aria-current={
                                 activeId === it.id ? "true" : undefined
@@ -91,7 +95,11 @@ export function NavMenu({ items, activeId, onSelect, title }) {
                             key={it.id}
                             type="button"
                             role="menuitem"
-                            className={`qn-item ${activeId === it.id ? "on" : ""}`}
+                            className={`qn-item ${
+                                it.kind === "home" ? "qn-home" : ""
+                            } ${
+                                it.kind === "hub" ? "qn-projects" : ""
+                            } ${activeId === it.id ? "on" : ""}`}
                             onClick={() => {
                                 onSelect(it.id);
                                 setOpen(false);

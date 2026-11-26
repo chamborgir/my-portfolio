@@ -78,6 +78,14 @@
   color: var(--text-main);
 }
 
+.qn-item.qn-home {
+  color: #5b9bff;
+}
+
+.qn-item.qn-projects {
+  color: var(--red);
+}
+
 .qn-item.on::before {
   height: 70%;
 }
@@ -87,6 +95,16 @@
   font-size: 0.66rem;
   color: var(--accent);
   opacity: 0.85;
+}
+
+.qn-item.qn-home .qn-num {
+  color: #5b9bff;
+  opacity: 1;
+}
+
+.qn-item.qn-projects .qn-num {
+  color: var(--red);
+  opacity: 1;
 }
 
 .qn-label {

@@ -20,184 +20,7 @@ const FOV = 40;
 const CAM_Z = 14;
 const FOLD_ZOOM = 1.12; // extra zoom on foldable-sized screens (1 = none)
 
-/* ---------- Projects ladder: every project is one real base pair ---------- */
-const B = 0.26; // length of one chemical bond. Scales the whole molecule.
-const PAIR_STEP = 1.7; // vertical spacing per pair (keeps neighbouring pairs from touching)
-const PAIR_TWIST = 0.9; // radians between neighbouring pairs (0 = flat, but edge-on twice a turn)
-const SUG_CX = 4.5; // sugar centre, in bond lengths from the middle of the pair
-const SUG_CY = -1.3; // sugar centre height, in bond lengths
-const SUG_R = 0.7; // sugar ring radius, in bond lengths
-const SUG_X = SUG_CX * B;
-const SUG_Y = SUG_CY * B;
-const PYR_CX = -2.8605; // ring centres, in bond lengths (so both sugars sit symmetrically)
-const PUR_CX = 1.1395;
-const BASE_COLORS = { A: 0xf0a090, T: 0xf3d77c, G: 0x8fb4ea, C: 0xa9d29b }; // ring tints, as in the textbook diagram
-// Pairs cycle through this pattern; purSide says which backbone holds the purine
-const PAIR_PATTERN = [
-    { pur: "A", pyr: "T", purSide: 1 },
-    { pur: "G", pyr: "C", purSide: -1 },
-    { pur: "G", pyr: "C", purSide: 1 },
-    { pur: "A", pyr: "T", purSide: -1 },
-];
-
-// Atom colours (the usual chemistry colours) and sizes
-const ATOM_COL = {
-    C: new THREE.Color(0x8e97aa),
-    N: new THREE.Color(0x5b86ff),
-    O: new THREE.Color(0xff5c5c),
-    H: new THREE.Color(0xc4cde2),
-};
-const ATOM_R = { C: 0.036, N: 0.062, O: 0.062, H: 0.04 };
-
-/* Skeletal structures from the diagram. Coordinates are in bond lengths, relative
-   to the centre of the six-membered ring, with the Watson-Crick edge facing +X.
-   Each atom is [element, x, y]; each bond is [atom, atom, order]. */
-const S3 = Math.sqrt(3) / 2;
-const PYR_RING = {
-    C4: ["C", 0.5, S3],
-    N3: ["N", 1, 0],
-    C2: ["C", 0.5, -S3],
-    N1: ["N", -0.5, -S3],
-    C6: ["C", -1, 0],
-    C5: ["C", -0.5, S3],
-};
-const PUR_RING = {
-    C6: ["C", -0.5, S3],
-    N1: ["N", -1, 0],
-    C2: ["C", -0.5, -S3],
-    N3: ["N", 0.5, -S3],
-    C4: ["C", 1, 0],
-    C5: ["C", 0.5, S3],
-    N7: ["N", 1.169, 1.609],
-    C8: ["C", 2.083, 1.202],
-    N9: ["N", 1.978, 0.208],
-};
-const MODELS = {
-    // Cytosine
-    C: {
-        link: "N1",
-        ring: [["C4", "N3", "C2", "N1", "C6", "C5"]],
-        atoms: {
-            ...PYR_RING,
-            N4: ["N", 1, 2 * S3],
-            H4a: ["H", 2, 2 * S3],
-            H4b: ["H", 0.5, 3 * S3],
-            O2: ["O", 1, -2 * S3],
-        },
-        bonds: [
-            ["C4", "N3", 2],
-            ["N3", "C2", 1],
-            ["C2", "N1", 1],
-            ["N1", "C6", 1],
-            ["C6", "C5", 2],
-            ["C5", "C4", 1],
-            ["C4", "N4", 1],
-            ["N4", "H4a", 1],
-            ["N4", "H4b", 1],
-            ["C2", "O2", 2],
-        ],
-    },
-    // Thymine
-    T: {
-        link: "N1",
-        ring: [["C4", "N3", "C2", "N1", "C6", "C5"]],
-        atoms: {
-            ...PYR_RING,
-            O4: ["O", 1, 2 * S3],
-            O2: ["O", 1, -2 * S3],
-            H3: ["H", 2, 0],
-            CH3: ["C", -1, 2 * S3],
-        },
-        bonds: [
-            ["C4", "N3", 1],
-            ["N3", "C2", 1],
-            ["C2", "N1", 1],
-            ["N1", "C6", 1],
-            ["C6", "C5", 2],
-            ["C5", "C4", 1],
-            ["C4", "O4", 2],
-            ["C2", "O2", 2],
-            ["N3", "H3", 1],
-            ["C5", "CH3", 1],
-        ],
-    },
-    // Adenine
-    A: {
-        link: "N9",
-        ring: [
-            ["C6", "N1", "C2", "N3", "C4", "C5"],
-            ["C5", "N7", "C8", "N9", "C4"],
-        ],
-        atoms: {
-            ...PUR_RING,
-            N6: ["N", -1, 2 * S3],
-            H6a: ["H", -2, 2 * S3],
-            H6b: ["H", -0.5, 3 * S3],
-        },
-        bonds: [
-            ["C6", "N1", 2],
-            ["N1", "C2", 1],
-            ["C2", "N3", 2],
-            ["N3", "C4", 1],
-            ["C4", "C5", 2],
-            ["C5", "C6", 1],
-            ["C5", "N7", 1],
-            ["N7", "C8", 2],
-            ["C8", "N9", 1],
-            ["N9", "C4", 1],
-            ["C6", "N6", 1],
-            ["N6", "H6a", 1],
-            ["N6", "H6b", 1],
-        ],
-    },
-    // Guanine
-    G: {
-        link: "N9",
-        ring: [
-            ["C6", "N1", "C2", "N3", "C4", "C5"],
-            ["C5", "N7", "C8", "N9", "C4"],
-        ],
-        atoms: {
-            ...PUR_RING,
-            O6: ["O", -1, 2 * S3],
-            H1: ["H", -2, 0],
-            N2: ["N", -1, -2 * S3],
-            H2a: ["H", -2, -2 * S3],
-            H2b: ["H", -0.5, -3 * S3],
-        },
-        bonds: [
-            ["C6", "N1", 1],
-            ["N1", "C2", 1],
-            ["C2", "N3", 2],
-            ["N3", "C4", 1],
-            ["C4", "C5", 2],
-            ["C5", "C6", 1],
-            ["C5", "N7", 1],
-            ["N7", "C8", 2],
-            ["C8", "N9", 1],
-            ["N9", "C4", 1],
-            ["C6", "O6", 2],
-            ["N1", "H1", 1],
-            ["C2", "N2", 1],
-            ["N2", "H2a", 1],
-            ["N2", "H2b", 1],
-        ],
-    },
-};
-// Watson-Crick hydrogen bonds: 2 for A-T, 3 for G-C  [base, atom, base, atom]
-const HBONDS = {
-    AT: [
-        ["pur", "N1", "pyr", "H3"],
-        ["pur", "H6a", "pyr", "O4"],
-    ],
-    GC: [
-        ["pur", "H1", "pyr", "N3"],
-        ["pur", "H2a", "pyr", "O2"],
-        ["pur", "O6", "pyr", "H4a"],
-    ],
-};
-
-// Morph between the main helix and the ladder (App.jsx waits for this)
+// Morph between the main and Projects views on a shared helix (App.jsx waits for this)
 export const MORPH_MS = 1100;
 
 // Change this number to get a different random arrangement of the main-helix nodes
@@ -207,13 +30,8 @@ const clamp01 = (v) => Math.max(0, Math.min(1, v));
 const lerp = (a, b, t) => a + (b - a) * t;
 const easeInOut = (t) =>
     t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-const easeOut = (t) => 1 - Math.pow(1 - t, 3);
 
-// Stages of the morph, all driven by one eased value m (0 = main helix, 1 = ladder)
-const phaseUnwind = (m) => easeInOut(clamp01(m / 0.55)); // strands untwist into a ladder
-const phaseCollapse = (m) => easeInOut(clamp01((m - 0.3) / 0.4)); // ladder pulls into the centre line
-const phaseTrim = (m) => easeInOut(clamp01((m - 0.45) / 0.45)); // strand trims to the ladder length
-const phaseSprout = (m) => clamp01((m - 0.55) / 0.45); // base pairs unfold
+// Stages of the morph, all driven by one eased value m (0 = main helix, 1 = Projects)
 const phaseColor = (m) => easeInOut(clamp01((m - 0.25) / 0.5)); // blue -> red
 
 // Small seeded random generator: random-looking, but identical on every visit
@@ -225,38 +43,29 @@ const mulberry32 = (a) => () => {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 };
 
-/* Everything is derived from the number of nodes n, so adding a project
-   automatically adds a base pair and adjusts the length of the ladder.
-   double = main DNA helix (scattered nodes on two strands)
-   single = Projects ladder (one base pair per project, evenly spaced) */
-const makeGeom = (n, seed, single) => {
-    const height = single ? Math.max(HEIGHT, n * PAIR_STEP) : HEIGHT;
+/* Both views use the same helix shape; each node list spaces its own nodes
+   across the main view's helix. */
+const makeGeom = (n, seed, totalNodes) => {
+    const height = HEIGHT;
     const full = height + PAD * 2;
-    const turns = single ? 0 : Math.max(1.8, n * 0.34);
+    const turns = Math.max(1.8, totalNodes * 0.34);
     const rand = mulberry32(seed + n * 101);
     const ts = [];
     const base = [];
     const flips = [];
     for (let k = 0; k < n; k++) {
-        if (single) {
-            ts.push((k + 0.5) / n);
-            base.push(0.4 + k * PAIR_TWIST); // depends only on k, so existing pairs stay put
-            flips.push(0);
-        } else {
-            const t = (k + 0.5) / n + (rand() - 0.5) * (0.7 / n);
-            ts.push(t);
-            base.push(t * turns * TAU);
-            flips.push(rand() < 0.5 ? 0 : Math.PI);
-        }
+        const t = (k + 0.5) / n + (rand() - 0.5) * (0.7 / n);
+        ts.push(t);
+        base.push(t * turns * TAU);
+        flips.push(rand() < 0.5 ? 0 : Math.PI);
     }
     return {
         n,
         height,
+        width: RADIUS * 2,
         full,
         turns,
-        pairs: single ? 0 : Math.round((turns * 9 * full) / height),
-        nodeBase: (k) => base[k], // angle without the strand flip
-        nodeFlip: (k) => flips[k], // 0 = strand A, PI = strand B
+        pairs: Math.round((turns * 9 * full) / height),
         nodeAngle: (k) => base[k] + flips[k],
         nodeY: (k) => (0.5 - ts[k]) * height,
     };
@@ -282,17 +91,11 @@ const faceAngle = (cur, angle) => {
     return cur + diff;
 };
 
-// Angle that turns a ladder pair face-on to the viewer (either side works)
-const facePair = (cur, theta) => {
-    const d = theta - cur;
-    return cur + (d - Math.round(d / Math.PI) * Math.PI);
-};
-
 /* ==================================================================
    THE HELIX
-   One Three.js scene holds BOTH the main double helix and the Projects
-   ladder. `view` ("main" | "projects") is the target; the scene morphs
-   between the two. DOM tap areas / clouds belong to the target view.
+   One Three.js scene holds the main and Projects nodes on the same double helix.
+   `view` ("main" | "projects") is the target; nodes crossfade between views.
+   DOM tap areas / clouds belong to the target view.
    ================================================================== */
 
 const Helix = forwardRef(function Helix(
@@ -317,13 +120,20 @@ const Helix = forwardRef(function Helix(
         v: view === "projects" ? 1 : 0,
         target: view === "projects" ? 1 : 0,
     });
+    const homeAnchorIndex = Math.max(
+        0,
+        mainItems.findIndex((item) => item.id === "projects"),
+    );
     const GM = useMemo(
-        () => makeGeom(mainItems.length, NODE_SEED, false),
+        () => makeGeom(mainItems.length, NODE_SEED, mainItems.length),
         [mainItems.length],
     );
+    const projectNodeCount = projectItems.filter(
+        (item) => item.kind !== "home",
+    ).length;
     const GP = useMemo(
-        () => makeGeom(projectItems.length, NODE_SEED, true),
-        [projectItems.length],
+        () => makeGeom(projectNodeCount, NODE_SEED, mainItems.length),
+        [projectNodeCount, mainItems.length],
     );
     const st = useRef({
         angle: 0.6,
@@ -356,16 +166,25 @@ const Helix = forwardRef(function Helix(
     }, [view]);
 
     useImperativeHandle(ref, () => ({
-        // Rotates the helix so a given node (or ladder pair) faces the viewer
+        // Rotates the scene so a given node faces the viewer
         focusItem(id) {
             const proj = viewRef.current === "projects";
             const list = proj ? projRef.current : mainRef.current;
-            const G = proj ? GP : GM;
             const k = list.findIndex((i) => i.id === id);
             if (k < 0) return;
-            focusTarget.current = proj
-                ? facePair(st.current.angle, G.nodeAngle(k))
-                : faceAngle(st.current.angle, G.nodeAngle(k));
+            const isHome = proj && list[k].kind === "home";
+            const geometry = proj && !isHome ? GP : GM;
+            const geometryIndex = isHome
+                ? homeAnchorIndex
+                : proj
+                  ? list
+                        .slice(0, k)
+                        .filter((item) => item.kind !== "home").length
+                  : k;
+            focusTarget.current = faceAngle(
+                st.current.angle,
+                geometry.nodeAngle(geometryIndex),
+            );
             st.current.vel = 0;
             holdUntil.current = performance.now() + 3000;
         },
@@ -392,6 +211,14 @@ const Helix = forwardRef(function Helix(
         const nP = projL.length;
         const NT = nM + nP;
         const all = [...mainL, ...projL];
+        const homeIndex = projL.findIndex((item) => item.kind === "home");
+        const projectNodeIndices = projL.map((item, k) =>
+            item.kind === "home"
+                ? -1
+                : homeIndex >= 0 && k > homeIndex
+                  ? k - 1
+                  : k,
+        );
 
         let renderer;
         try {
@@ -422,26 +249,11 @@ const Helix = forwardRef(function Helix(
         const matB = new THREE.MeshBasicMaterial({ color: 0x8a99b8 });
         const nodeMat = new THREE.MeshBasicMaterial({ color: 0x5b9bff });
         const nodeMatRed = new THREE.MeshBasicMaterial({ color: 0xff5a6e });
+        const nodeMatBlue = new THREE.MeshBasicMaterial({ color: 0x5b9bff });
         const rungMat = new THREE.LineBasicMaterial({
             color: 0x5b9bff,
             transparent: true,
             opacity: 0.28,
-        });
-        const atomMat = new THREE.MeshBasicMaterial({ color: 0xffffff }); // tinted per atom
-        const molBondMat = new THREE.MeshBasicMaterial({ color: 0xe4eaf7 });
-        const hbMat = new THREE.LineDashedMaterial({
-            color: 0xffffff,
-            dashSize: 0.045,
-            gapSize: 0.04,
-            transparent: true,
-            opacity: 0.9,
-        });
-        const fillMat = new THREE.MeshBasicMaterial({
-            vertexColors: true,
-            transparent: true,
-            opacity: 0.45,
-            side: THREE.DoubleSide,
-            depthWrite: false,
         });
         const glowTex = makeGlowTexture();
         const glowOpts = {
@@ -459,6 +271,10 @@ const Helix = forwardRef(function Helix(
             ...glowOpts,
             color: 0xff5a6e,
         });
+        const glowMatBlue = new THREE.SpriteMaterial({
+            ...glowOpts,
+            color: 0x5b9bff,
+        });
         const dustMat = new THREE.PointsMaterial({
             color: 0x5b9bff,
             size: 0.04,
@@ -468,16 +284,10 @@ const Helix = forwardRef(function Helix(
         });
 
         const geos = []; // everything to dispose on cleanup
-        const ims = []; // instanced meshes to dispose on cleanup
         const dummy = new THREE.Object3D();
-        const dummy2 = new THREE.Object3D();
-        const yAxis = new THREE.Vector3(0, 1, 0);
-        const dirV = new THREE.Vector3();
 
-        /* ----- Main helix strands and base pairs. They are rebuilt from maths on
-                 every frame of the morph, so they can untwist, collapse and trim. ----- */
-        const chainExtent = nP > 0 ? GP.height / 2 + 0.2 : 0;
-        const strandLen = Math.max(GM.full, chainExtent * 2 + 4);
+        /* ----- The shared double-helix strands and rungs ----- */
+        const strandLen = GM.full;
         const twistRate = (GM.turns * TAU) / GM.height;
         const arcLen =
             strandLen * Math.sqrt(1 + Math.pow(RADIUS * twistRate, 2));
@@ -501,7 +311,6 @@ const Helix = forwardRef(function Helix(
         [strandA, strandB, pairA, pairB].forEach((im) => {
             im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
             im.frustumCulled = false;
-            ims.push(im);
         });
         rungAttr.setUsage(THREE.DynamicDrawUsage);
         rungs.frustumCulled = false;
@@ -514,9 +323,9 @@ const Helix = forwardRef(function Helix(
             mesh.setMatrixAt(i, dummy.matrix);
         };
 
-        let capped = false; // upright phone: trim the main helix to the node area
+        let capped = false; // upright phone: trim both views to their node area
         const updateStructure = (u, c, ext, fade) => {
-            const tw = 1 - u; // 1 = fully twisted, 0 = flat ladder
+            const tw = 1 - u; // 1 = fully twisted, 0 = untwisted
             const rEff = RADIUS * (1 - c); // 0 = collapsed onto the axis
             const twist = GM.turns * TAU;
 
@@ -566,206 +375,43 @@ const Helix = forwardRef(function Helix(
             rungMat.opacity = 0.28 * (1 - c) * fade;
         };
 
-        /* ----- One base pair, drawn as real skeletal structures (see MODELS) ----- */
+        /* ----- Project entries use the same spherical nodes as the main helix ----- */
         const nodeGeo = new THREE.SphereGeometry(0.15, 16, 16);
-        const atomGeo = new THREE.SphereGeometry(1, 10, 8); // unit sphere, scaled per atom
-        const molBondGeo = new THREE.CylinderGeometry(0.012, 0.012, 1, 6);
-        const backGeo = new THREE.CylinderGeometry(0.035, 0.035, 1, 6);
-        const phosGeo = new THREE.SphereGeometry(0.095, 10, 8);
-        geos.push(nodeGeo, atomGeo, molBondGeo, backGeo, phosGeo);
+        geos.push(nodeGeo);
 
-        const fillColor = new THREE.Color();
-
-        const buildPair = (k) => {
-            const g = new THREE.Group();
-            const pat = PAIR_PATTERN[k % PAIR_PATTERN.length];
-            const sd = pat.purSide; // mirrors the whole pair when the purine is on the other side
-            const pyrM = MODELS[pat.pyr];
-            const purM = MODELS[pat.pur];
-            const atoms = [];
-            const segs = []; // bond segments [x1, y1, x2, y2]
-            const pos = { pyr: {}, pur: {} };
-
-            // single bonds are one line, double bonds two parallel lines
-            const bondSeg = (p, q, order) => {
-                if (order === 2) {
-                    const dx = q.x - p.x;
-                    const dy = q.y - p.y;
-                    const len = Math.hypot(dx, dy) || 1;
-                    const ox = (-dy / len) * 0.017;
-                    const oy = (dx / len) * 0.017;
-                    segs.push([p.x + ox, p.y + oy, q.x + ox, q.y + oy]);
-                    segs.push([p.x - ox, p.y - oy, q.x - ox, q.y - oy]);
-                } else {
-                    segs.push([p.x, p.y, q.x, q.y]);
-                }
-            };
-
-            const place = (model, cx, key) => {
-                Object.entries(model.atoms).forEach(([id, [el, x, y]]) => {
-                    const P = { x: (cx + x) * sd * B, y: y * B, el };
-                    pos[key][id] = P;
-                    atoms.push(P);
-                });
-                model.bonds.forEach(([a, b, o]) =>
-                    bondSeg(pos[key][a], pos[key][b], o),
-                );
-            };
-            place(pyrM, PYR_CX, "pyr");
-            place(purM, PUR_CX, "pur");
-
-            // deoxyribose rings on both backbones, bonded to the base's nitrogen
-            [
-                ["pyr", -sd],
-                ["pur", sd],
-            ].forEach(([key, side]) => {
-                const cxs = side * SUG_X;
-                const verts = [];
-                for (let i = 0; i < 5; i++) {
-                    const a = Math.PI / 2 + (i * TAU) / 5;
-                    const P = {
-                        x: cxs + Math.cos(a) * SUG_R * B,
-                        y: SUG_Y + Math.sin(a) * SUG_R * B,
-                        el: i === 0 ? "O" : "C", // the ring oxygen sits on top
-                    };
-                    verts.push(P);
-                    atoms.push(P);
-                }
-                for (let i = 0; i < 5; i++)
-                    bondSeg(verts[i], verts[(i + 1) % 5], 1);
-                const N = pos[key][(key === "pyr" ? pyrM : purM).link];
-                let best = verts[1];
-                let bd = Infinity;
-                for (let i = 1; i < 5; i++) {
-                    const d = Math.hypot(verts[i].x - N.x, verts[i].y - N.y);
-                    if (d < bd) {
-                        bd = d;
-                        best = verts[i];
-                    }
-                }
-                bondSeg(N, best, 1);
-            });
-
-            // translucent ring tints (thymine yellow, adenine pink, guanine blue, cytosine green)
-            const fp = [];
-            const fc = [];
-            const addFill = (key, ids, hex) => {
-                const pts = ids.map((id) => pos[key][id]);
-                const cx = pts.reduce((s, p) => s + p.x, 0) / pts.length;
-                const cy = pts.reduce((s, p) => s + p.y, 0) / pts.length;
-                fillColor.set(hex);
-                for (let i = 0; i < pts.length; i++) {
-                    const p = pts[i];
-                    const q = pts[(i + 1) % pts.length];
-                    fp.push(cx, cy, -0.012, p.x, p.y, -0.012, q.x, q.y, -0.012);
-                    for (let t = 0; t < 3; t++)
-                        fc.push(fillColor.r, fillColor.g, fillColor.b);
-                }
-            };
-            addFill("pyr", pyrM.ring[0], BASE_COLORS[pat.pyr]);
-            purM.ring.forEach((r) => addFill("pur", r, BASE_COLORS[pat.pur]));
-            const fillGeo = new THREE.BufferGeometry();
-            fillGeo.setAttribute(
-                "position",
-                new THREE.Float32BufferAttribute(fp, 3),
-            );
-            fillGeo.setAttribute(
-                "color",
-                new THREE.Float32BufferAttribute(fc, 3),
-            );
-            geos.push(fillGeo);
-            const fill = new THREE.Mesh(fillGeo, fillMat);
-            fill.renderOrder = -1;
-            g.add(fill);
-
-            // atoms (instanced, one draw call)
-            const atomIM = new THREE.InstancedMesh(
-                atomGeo,
-                atomMat,
-                atoms.length,
-            );
-            atoms.forEach((a, i) => {
-                dummy.position.set(a.x, a.y, 0);
-                dummy.scale.setScalar(ATOM_R[a.el]);
-                dummy.updateMatrix();
-                atomIM.setMatrixAt(i, dummy.matrix);
-                atomIM.setColorAt(i, ATOM_COL[a.el]);
-            });
-            atomIM.instanceMatrix.needsUpdate = true;
-            if (atomIM.instanceColor) atomIM.instanceColor.needsUpdate = true;
-            atomIM.frustumCulled = false;
-            ims.push(atomIM);
-            g.add(atomIM);
-
-            // bonds (instanced, one draw call)
-            const bondIM = new THREE.InstancedMesh(
-                molBondGeo,
-                molBondMat,
-                segs.length,
-            );
-            segs.forEach(([x1, y1, x2, y2], i) => {
-                dirV.set(x2 - x1, y2 - y1, 0);
-                const len = dirV.length() || 1e-4;
-                dummy2.position.set((x1 + x2) / 2, (y1 + y2) / 2, 0);
-                dummy2.quaternion.setFromUnitVectors(
-                    yAxis,
-                    dirV.multiplyScalar(1 / len),
-                );
-                dummy2.scale.set(1, len, 1);
-                dummy2.updateMatrix();
-                bondIM.setMatrixAt(i, dummy2.matrix);
-            });
-            bondIM.instanceMatrix.needsUpdate = true;
-            bondIM.frustumCulled = false;
-            ims.push(bondIM);
-            g.add(bondIM);
-
-            // dotted hydrogen bonds between the real donor and acceptor atoms
-            const hp = [];
-            HBONDS[pat.pur + pat.pyr].forEach(([k1, a1, k2, a2]) => {
-                const p = pos[k1][a1];
-                const q = pos[k2][a2];
-                hp.push(p.x, p.y, 0, q.x, q.y, 0);
-            });
-            const hg = new THREE.BufferGeometry();
-            hg.setAttribute(
-                "position",
-                new THREE.Float32BufferAttribute(hp, 3),
-            );
-            geos.push(hg);
-            const hb = new THREE.LineSegments(hg, hbMat);
-            hb.computeLineDistances();
-            g.add(hb);
-            return g;
-        };
-
-        /* ----- Content nodes: main ones first, then the project base pairs ----- */
+        /* ----- All entries are spherical nodes on the same double helix ----- */
         const nodePos = all.map(() => new THREE.Vector3());
-        const nodeObjs = []; // main: sphere, projects: the base-pair group
+        const nodeObjs = [];
         const nodeGlows = [];
         const yMain = mainL.map((_, k) => GM.nodeY(k));
-        const yProj = projL.map((_, k) => GP.nodeY(k));
-        const pairGroups = [];
+        const homeAngle = GM.nodeAngle(homeAnchorIndex);
+        const homePosition = new THREE.Vector3(
+            Math.cos(homeAngle) * RADIUS,
+            GM.nodeY(homeAnchorIndex),
+            Math.sin(homeAngle) * RADIUS,
+        );
+        const yProjects = projectNodeIndices.map((k) =>
+            k < 0 ? homePosition.y : GP.nodeY(k),
+        );
 
-        all.forEach((it, i) => {
-            let obj;
-            if (i >= nM) {
-                const k = i - nM;
-                obj = buildPair(k);
-                obj.visible = false;
-                pairGroups.push(obj);
-                nodePos[i].set(0, yProj[k], 0); // the tap target sits at the centre of the pair
-            } else {
-                obj = new THREE.Mesh(
-                    nodeGeo,
-                    it.tint === "red" ? nodeMatRed : nodeMat,
-                );
-            }
+        all.forEach((it) => {
+            const obj = new THREE.Mesh(
+                nodeGeo,
+                it.tint === "red"
+                    ? nodeMatRed
+                    : it.tint === "blue"
+                      ? nodeMatBlue
+                      : nodeMat,
+            );
             group.add(obj);
             nodeObjs.push(obj);
 
             const glow = new THREE.Sprite(
-                it.tint === "red" ? glowMatRed : glowMat,
+                it.tint === "red"
+                    ? glowMatRed
+                    : it.tint === "blue"
+                      ? glowMatBlue
+                      : glowMat,
             );
             glow.scale.setScalar(0.8);
             group.add(glow);
@@ -776,126 +422,8 @@ const Helix = forwardRef(function Helix(
         const midOf = (ys) => (Math.max(...ys) + Math.min(...ys)) / 2;
         const mainSpan = spanOf(yMain);
         const mainMid = midOf(yMain);
-
-        /* ----- The ladder's two sugar-phosphate backbones: phosphates and bonds that
-                 follow the sugars, so they zigzag sugar - phosphate - sugar ----- */
-        const sproutArr = projL.map(() => 0);
-        const phosA = new THREE.InstancedMesh(phosGeo, matA, nP + 1);
-        const phosB = new THREE.InstancedMesh(phosGeo, matB, nP + 1);
-        const bondsA = new THREE.InstancedMesh(
-            backGeo,
-            matA,
-            Math.max(1, 2 * nP),
-        );
-        const bondsB = new THREE.InstancedMesh(
-            backGeo,
-            matB,
-            Math.max(1, 2 * nP),
-        );
-        [phosA, phosB, bondsA, bondsB].forEach((im) => {
-            im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-            im.frustumCulled = false;
-            im.visible = false;
-            ims.push(im);
-            group.add(im);
-        });
-        const chainN = 2 * nP + 1; // nodes along a backbone: phosphate, sugar, phosphate, ...
-        const poolA = Array.from({ length: chainN }, () => new THREE.Vector3());
-        const poolB = Array.from({ length: chainN }, () => new THREE.Vector3());
-        const spAt = new Array(chainN).fill(0);
-        const yTop0 = nP > 0 ? GP.nodeY(0) : 0;
-        const ySt = nP > 0 ? GP.height / nP : 1;
-        const th0 = nP > 0 ? GP.nodeAngle(0) : 0;
-        const SUG_TRIM = SUG_R * B; // bonds stop at the edge of a sugar ring, not its centre
-
-        const chainPoint = (sign, u, out) => {
-            const uc = u < 0 ? 0 : u > nP - 1 ? nP - 1 : u;
-            const i0 = Math.floor(uc);
-            const i1 = i0 + 1 < nP ? i0 + 1 : i0;
-            const sp = lerp(sproutArr[i0], sproutArr[i1], uc - i0);
-            const th = th0 + u * PAIR_TWIST + (1 - sp) * 0.9;
-            const r = sign * SUG_X * sp;
-            out.set(
-                r * Math.cos(th),
-                yTop0 - u * ySt + SUG_Y * clamp01(sp * 3),
-                r * Math.sin(th),
-            );
-            return sp;
-        };
-
-        const setBond = (mesh, idx, a, b, thick, trimA, trimB) => {
-            dirV.subVectors(b, a);
-            const len = dirV.length();
-            if (len > 1e-6) dirV.multiplyScalar(1 / len);
-            const t0 = Math.min(trimA, len * 0.45);
-            const t1 = Math.min(trimB, len * 0.45);
-            const l2 = Math.max(len - t0 - t1, 1e-4);
-            const mid = t0 + l2 / 2;
-            dummy2.position.set(
-                a.x + dirV.x * mid,
-                a.y + dirV.y * mid,
-                a.z + dirV.z * mid,
-            );
-            if (len > 1e-6) dummy2.quaternion.setFromUnitVectors(yAxis, dirV);
-            dummy2.scale.set(Math.max(thick, 1e-4), l2, Math.max(thick, 1e-4));
-            dummy2.updateMatrix();
-            mesh.setMatrixAt(idx, dummy2.matrix);
-        };
-
-        const strandUpdate = (sign, pool, phos, bonds) => {
-            for (let t = 0; t < chainN; t++) {
-                spAt[t] = chainPoint(sign, -0.5 + 0.5 * t, pool[t]);
-                if (t % 2 === 0) {
-                    setBead(
-                        phos,
-                        t / 2,
-                        pool[t].x,
-                        pool[t].y,
-                        pool[t].z,
-                        clamp01(spAt[t] * 3),
-                    );
-                }
-            }
-            for (let j = 0; j < chainN - 1; j++) {
-                const ga = clamp01(spAt[j] * 3);
-                const gb = clamp01(spAt[j + 1] * 3);
-                setBond(
-                    bonds,
-                    j,
-                    pool[j],
-                    pool[j + 1],
-                    Math.min(ga, gb),
-                    j % 2 === 1 ? SUG_TRIM * ga : 0, // odd nodes are sugars
-                    (j + 1) % 2 === 1 ? SUG_TRIM * gb : 0,
-                );
-            }
-        };
-
-        // Unfold the pairs one after another and keep the backbones attached
-        const updateLadder = (sbv) => {
-            if (nP === 0) return;
-            for (let k = 0; k < nP; k++) {
-                sproutArr[k] = easeOut(
-                    clamp01(sbv * 1.7 - 0.7 * (nP > 1 ? k / (nP - 1) : 0)),
-                );
-            }
-            for (let k = 0; k < nP; k++) {
-                const sp = sproutArr[k];
-                const gk = Math.max(clamp01(sp * 3), 1e-4);
-                const pg = pairGroups[k];
-                pg.visible = sp > 0.001;
-                pg.position.set(0, yProj[k], 0);
-                pg.rotation.y = -(GP.nodeAngle(k) + (1 - sp) * 0.9);
-                pg.scale.set(Math.max(sp, 1e-4), gk, gk);
-            }
-            strandUpdate(1, poolA, phosA, bondsA);
-            strandUpdate(-1, poolB, phosB, bondsB);
-            const vis = sbv > 0.001;
-            [phosA, phosB, bondsA, bondsB].forEach((im) => {
-                im.visible = vis;
-                im.instanceMatrix.needsUpdate = true;
-            });
-        };
+        const projectSpan = spanOf(yProjects);
+        const projectMid = midOf(yProjects);
 
         /* ----- A little drifting dust ----- */
         const dustCount = 70;
@@ -932,17 +460,17 @@ const Helix = forwardRef(function Helix(
             const cs = getComputedStyle(document.documentElement);
             blue.set(cs.getPropertyValue("--accent").trim());
             redC.set(cs.getPropertyValue("--red").trim());
-            const main = cs.getPropertyValue("--text-main").trim();
-            matB.color.set(cs.getPropertyValue("--text-muted").trim());
-            molBondMat.color.set(main);
-            hbMat.color.set(main);
+            const muted = cs.getPropertyValue("--text-muted").trim();
+            matB.color.set(muted);
             nodeMatRed.color.copy(redC);
+            nodeMatBlue.color.copy(blue);
             glowMatRed.color.copy(redC);
+            glowMatBlue.color.copy(blue);
             scene.fog.color.set(cs.getPropertyValue("--bg-color").trim());
             // Additive glow disappears on a light background, so use normal blending there
             const additive =
                 cs.getPropertyValue("--glow-additive").trim() !== "0";
-            [glowMat, glowMatRed].forEach((m) => {
+            [glowMat, glowMatRed, glowMatBlue].forEach((m) => {
                 m.blending = additive
                     ? THREE.AdditiveBlending
                     : THREE.NormalBlending;
@@ -975,20 +503,23 @@ const Helix = forwardRef(function Helix(
             if (!force && w === W && Math.abs(h - H) < 120) return;
             W = w;
             H = h;
+            const mobile = w < 700;
+            renderer.setPixelRatio(
+                Math.min(window.devicePixelRatio || 1, mobile ? 1.25 : 1.75),
+            );
             renderer.setSize(w, h, false);
             camera.aspect = w / h;
             camera.updateProjectionMatrix();
 
             const wpp = (2 * Math.tan((FOV * Math.PI) / 360) * CAM_Z) / h; // world per pixel
-            const mobile = w < 700;
             const ratio = w / h;
             // Unfolded foldables have roughly square screens
             const foldable =
                 w >= 500 && w <= 1100 && ratio >= 0.72 && ratio <= 1.4;
             const portraitPhone = mobile && h > w;
 
-            if (capped !== portraitPhone) {
-                capped = portraitPhone; // trim the main helix on an upright phone
+            if (capped !== mobile) {
+                capped = mobile;
                 dirty = true;
             }
 
@@ -1007,22 +538,22 @@ const Helix = forwardRef(function Helix(
                 const top = mobile
                     ? Math.max(
                           foldable ? 150 : 170,
-                          (introBottoms[v] ?? (isProj ? 158 : 206)) + 36,
+                          (introBottoms[v] ?? (isProj ? 158 : 206)) + 48,
                       )
                     : foldable
                       ? 88
                       : 100;
                 const bottom = mobile ? 64 : foldable ? 64 : 80;
-                const regionH = Math.max(240, h - top - bottom);
+                const regionH = Math.max(mobile ? 120 : 240, h - top - bottom);
 
                 let span;
                 let mid = 0;
                 let fitR = RADIUS;
                 if (isProj) {
-                    // the ladder is finite: fit all of it
-                    span = GP.height + 0.6;
-                    fitR = SUG_X + SUG_R * B + 0.1;
-                } else if (portraitPhone) {
+                    span = projectSpan;
+                    mid = projectMid;
+                    fitR = GP.width / 2;
+                } else if (mobile) {
                     span = GM.height; // trimmed main helix
                 } else {
                     span = mainSpan; // nodes fill the screen, strand ends run off
@@ -1037,13 +568,19 @@ const Helix = forwardRef(function Helix(
                 const cyPx = top + regionH / 2;
                 return {
                     fit,
-                    y: (h / 2 - cyPx) * wpp - mid * fit,
+                    mid,
+                    cyPx,
                     topLimit: mobile ? top - 8 : 76,
                 };
             };
 
             L.main = frameFor("main");
-            L.proj = nP > 0 ? frameFor("projects") : L.main;
+            L.proj = nP > 0 ? frameFor("projects") : { ...L.main };
+            const sharedFit = Math.min(L.main.fit, L.proj.fit);
+            [L.main, L.proj].forEach((frame) => {
+                frame.fit = sharedFit;
+                frame.y = (h / 2 - frame.cyPx) * wpp - frame.mid * sharedFit;
+            });
             L.x = ((mobile ? w / 2 : w * 0.6) - w / 2) * wpp;
         };
         layout(true);
@@ -1081,7 +618,6 @@ const Helix = forwardRef(function Helix(
         const belowState = all.map(() => false);
         let lastFrontId = null;
         let settledState = true;
-        let lastM = -1;
         let idle = 0.22;
         let spinDust = 0;
         let last = performance.now();
@@ -1106,24 +642,11 @@ const Helix = forwardRef(function Helix(
             }
             const m = easeInOut(mo.v);
 
-            const u = phaseUnwind(m);
-            const c = phaseCollapse(m);
-            const sb = phaseSprout(m);
-
-            if (m !== lastM || dirty) {
+            if (dirty) {
                 const extMain = capped
                     ? GM.height / 2 + 0.25
                     : strandLen / 2 + 1;
-                const extProj = nP > 0 ? chainExtent : extMain;
-                // the main helix's collapsed strand fades away as the ladder unfolds
-                updateStructure(
-                    u,
-                    c,
-                    lerp(extMain, extProj, phaseTrim(m)),
-                    1 - clamp01(sb * 2.5),
-                );
-                updateLadder(sb);
-                lastM = m;
+                updateStructure(0, 0, extMain, 1);
                 dirty = false;
             }
 
@@ -1171,40 +694,48 @@ const Helix = forwardRef(function Helix(
             dust.scale.setScalar(cur.s);
             dust.position.copy(group.position);
 
-            // a little extra twist while the structure reshapes
-            const rotY = s.angle + Math.sin(Math.PI * m) * 0.7;
+            const rotY = s.angle + TAU * m;
             group.rotation.set(s.tilt, rotY, 0.14);
             spinDust += dt * 0.02;
             dust.rotation.y = spinDust;
             group.updateMatrixWorld(true);
 
-            /* --- node glows, and where the main nodes are --- */
-            const wMain = 1 - clamp01(c / 0.85); // main nodes melt into the centre line
+            /* --- Position the active view's project nodes on the same helix --- */
             for (let i = 0; i < NT; i++) {
                 const it = all[i];
                 const hot =
                     hoverRef.current === it.id || activeRef.current === it.id;
                 hotAmt[i] += ((hot ? 1 : 0) - hotAmt[i]) * Math.min(1, dt * 10);
                 const hA = hotAmt[i];
+                let angle;
+                let y;
                 let w;
-
                 if (i < nM) {
-                    const ang = GM.nodeBase(i) * (1 - u) + GM.nodeFlip(i);
-                    const r = RADIUS * (1 - c);
-                    nodePos[i].set(
-                        Math.cos(ang) * r,
-                        yMain[i],
-                        Math.sin(ang) * r,
-                    );
-                    nodeObjs[i].position.copy(nodePos[i]);
-                    w = wMain;
-                    nodeObjs[i].scale.setScalar(
-                        Math.max(w, 0.0001) * (1 + 0.7 * hA),
-                    );
-                    nodeObjs[i].visible = w > 0.01;
+                    angle = GM.nodeAngle(i);
+                    y = yMain[i];
+                    w = 1 - m;
                 } else {
-                    w = clamp01(sproutArr[i - nM] * 3); // pair groups are positioned in updateLadder
+                    w = m;
+                    const k = projectNodeIndices[i - nM];
+                    if (k < 0) {
+                        nodePos[i].copy(homePosition);
+                    } else {
+                        angle = GP.nodeAngle(k);
+                        y = GP.nodeY(k);
+                    }
                 }
+                if (i < nM || projectNodeIndices[i - nM] >= 0) {
+                    nodePos[i].set(
+                        Math.cos(angle) * RADIUS,
+                        y,
+                        Math.sin(angle) * RADIUS,
+                    );
+                }
+                nodeObjs[i].position.copy(nodePos[i]);
+                nodeObjs[i].scale.setScalar(
+                    Math.max(w, 0.0001) * (1 + 0.7 * hA),
+                );
+                nodeObjs[i].visible = w > 0.01;
                 nodeGlows[i].visible = w > 0.01;
                 nodeGlows[i].position.copy(nodePos[i]);
                 nodeGlows[i].scale.setScalar(
@@ -1222,25 +753,14 @@ const Helix = forwardRef(function Helix(
             let frontMax = 0.85;
             for (let i = from; i < to; i++) {
                 tmp.copy(nodePos[i]).applyMatrix4(group.matrixWorld);
-                let front;
-                if (i < nM) {
-                    front =
-                        THREE.MathUtils.clamp(
-                            (tmp.z - group.position.z) / (RADIUS * cur.s),
-                            -1,
-                            1,
-                        ) *
-                            0.5 +
-                        0.5;
-                } else {
-                    // a ladder pair is "in front" when it faces the screen head-on
-                    const k = i - nM;
-                    front = Math.abs(
-                        Math.cos(
-                            rotY - (GP.nodeAngle(k) + (1 - sproutArr[k]) * 0.9),
-                        ),
-                    );
-                }
+                const front =
+                    THREE.MathUtils.clamp(
+                        (tmp.z - group.position.z) / (RADIUS * cur.s),
+                        -1,
+                        1,
+                    ) *
+                        0.5 +
+                    0.5;
                 frontVals[i] = front;
                 if (front > frontMax) {
                     frontMax = front;
@@ -1317,16 +837,19 @@ const Helix = forwardRef(function Helix(
                 matB,
                 nodeMat,
                 nodeMatRed,
+                nodeMatBlue,
                 rungMat,
-                atomMat,
-                molBondMat,
-                hbMat,
-                fillMat,
                 glowMat,
                 glowMatRed,
+                glowMatBlue,
                 dustMat,
             ].forEach((m) => m.dispose());
-            ims.forEach((im) => im.dispose());
+            [
+                strandA,
+                strandB,
+                pairA,
+                pairB,
+            ].forEach((im) => im.dispose());
             glowTex.dispose();
             renderer.dispose();
             renderer.forceContextLoss();

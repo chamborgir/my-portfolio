@@ -5,9 +5,9 @@ import work2Img from "./assets/work2.gif";
 import work3Img from "./assets/work3.gif";
 import work4Img from "./assets/work4.gif";
 import work5Img from "./assets/work5.gif";
+import work6Img from "./assets/work6.gif";
 
-// Add a new project here and it becomes a new nucleotide on the Projects strand.
-// Spacing, twist, strand length and nucleotide size all adjust automatically.
+// Each project becomes a node on the Projects DNA helix.
 export const projectList = [
     {
         short: "VLA Robotics",
@@ -93,18 +93,44 @@ export const projectList = [
             { label: "Live Demo", url: "#" },
         ],
     },
+    {
+        short: "Watch Party",
+        image: work6Img,
+        type: "Web",
+        title: "Watch Party",
+        category: "Project #6",
+        desc: "A realtime watch-party app where friends join a room with one link, upload videos and watch together in sync. Play, pause, seek and playback speed are shared with everyone, and the room waits automatically whenever someone is still buffering.",
+        tags: [
+            "React",
+            "Supabase Realtime",
+            "Tigris Storage",
+            "Vercel",
+            "JavaScript",
+        ],
+        links: [
+            { label: "GitHub", url: "#" },
+            { label: "Live Demo", url: "#" },
+        ],
+    },
 ];
 
-// Nodes on the Works (red) helix
-// Nodes on the Projects strand (one linked nucleotide per project)
-export const PROJECT_ITEMS = projectList.map((p, i) => ({
-    id: `project-${i + 1}`,
-    kind: "project",
-    label: p.short,
-    kicker: `${p.category} · ${p.type}`,
-    image: p.image,
-    project: p,
-}));
+// Project nodes are followed by Home so it stays last in both numbered navs.
+export const PROJECT_ITEMS = projectList
+    .map((p, i) => ({
+        id: `project-${i + 1}`,
+        kind: "project",
+        label: p.short,
+        kicker: `${p.category} · ${p.type}`,
+        image: p.image,
+        project: p,
+    }))
+    .concat({
+        id: "home",
+        kind: "home",
+        label: "Home",
+        kicker: "Return to main helix",
+        tint: "blue",
+    });
 
 const LinkList = ({ links }) => (
     <div className="project-links-wrapper">
