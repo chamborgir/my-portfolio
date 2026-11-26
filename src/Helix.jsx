@@ -500,7 +500,7 @@ const Helix = forwardRef(function Helix(
         const layout = (force) => {
             const w = window.innerWidth;
             const h = window.innerHeight;
-            if (!force && w === W && Math.abs(h - H) < 120) return;
+            if (!force && w === W && h === H) return;
             W = w;
             H = h;
             const mobile = w < 700;

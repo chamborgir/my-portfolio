@@ -13,9 +13,10 @@ export default function Modal({
     onNavigate,
     onSeeProjects,
 }) {
-    // The "Works" node opens the red helix instead of a modal, so skip it here
-    // The "Projects" node opens the nucleotide chain instead of a modal, so skip it here
-    const navItems = items.filter((i) => i.kind !== "hub");
+    // Hub and Home entries change views; only content items belong in modal navigation.
+    const navItems = items.filter(
+        (i) => i.kind !== "hub" && i.kind !== "home",
+    );
     const index = Math.max(
         0,
         navItems.findIndex((i) => i.id === id),
